@@ -18,7 +18,10 @@ class JsonSchemaResponseFormat implements JsonSerializable {
 	public function jsonSerialize(): array {
 		return [
 			'type' => 'json_schema',
-			'json_schema' => $this->schema
+			'json_schema' => [
+				'name' => 'Response',
+				'schema' => $this->schema
+			]
 		];
 	}
 }
