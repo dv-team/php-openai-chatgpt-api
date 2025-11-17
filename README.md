@@ -24,10 +24,10 @@ Example with Guzzle as the HTTP client. You can implement `HttpPostInterface` wi
 <?php
 
 use GuzzleHttp\Client;
-use Kir\ChatGPT\ChatGPT;
-use Kir\ChatGPT\Http\HttpPostInterface;
-use Kir\ChatGPT\MessageTypes\ChatInput;
-use Kir\ChatGPT\OpenAIToken;
+use DvTeam\ChatGPT\ChatGPT;
+use DvTeam\ChatGPT\Http\HttpPostInterface;
+use DvTeam\ChatGPT\MessageTypes\ChatInput;
+use DvTeam\ChatGPT\OpenAIToken;
 
 require 'vendor/autoload.php';
 
@@ -71,7 +71,7 @@ Key concepts:
 Minimal example using default model:
 
 ```php
-use Kir\ChatGPT\MessageTypes\ChatInput;
+use DvTeam\ChatGPT\MessageTypes\ChatInput;
 
 $response = $chat->chat([
     new ChatInput('Summarize why typing helps in PHP 8.1.'),
@@ -82,8 +82,8 @@ echo $response->firstChoice()->result;
 Choose a model explicitly:
 
 ```php
-use Kir\ChatGPT\PredefinedModels\LLMSmallNoReasoning;   // gpt-4.1-mini
-use Kir\ChatGPT\PredefinedModels\LLMMediumNoReasoning;  // gpt-4.1
+use DvTeam\ChatGPT\PredefinedModels\LLMSmallNoReasoning;   // gpt-4.1-mini
+use DvTeam\ChatGPT\PredefinedModels\LLMMediumNoReasoning;  // gpt-4.1
 
 $response = $chat->chat(
     context: [new ChatInput('Explain traits in PHP.')],
@@ -96,8 +96,8 @@ $response = $chat->chat(
 Image input via URL:
 
 ```php
-use Kir\ChatGPT\Messages\ChatImageUrl;
-use Kir\ChatGPT\MessageTypes\ChatInput;
+use DvTeam\ChatGPT\Messages\ChatImageUrl;
+use DvTeam\ChatGPT\MessageTypes\ChatInput;
 
 $response = $chat->chat([
     new ChatInput(
@@ -112,8 +112,8 @@ $response = $chat->chat([
 Enforce structured output using a JSON Schema via `JsonSchemaResponseFormat`. The library validates the response before returning it.
 
 ```php
-use Kir\ChatGPT\MessageTypes\ChatInput;
-use Kir\ChatGPT\ResponseFormat\JsonSchemaResponseFormat;
+use DvTeam\ChatGPT\MessageTypes\ChatInput;
+use DvTeam\ChatGPT\ResponseFormat\JsonSchemaResponseFormat;
 
 $response = $chat->chat(
     context: [
@@ -146,12 +146,12 @@ Note about JSON decoding: Internally, `JSON::parse` returns objects (not associa
 Describe callable tools with names, descriptions, and typed parameters. The model may choose to call them, returning tool calls you can execute and then respond to.
 
 ```php
-use Kir\ChatGPT\Functions\Function\GPTProperties;
-use Kir\ChatGPT\Functions\Function\Types\GPTNumberProperty;
-use Kir\ChatGPT\Functions\GPTFunction;
-use Kir\ChatGPT\Functions\GPTFunctions;
-use Kir\ChatGPT\MessageTypes\ChatInput;
-use Kir\ChatGPT\MessageTypes\ToolResult;
+use DvTeam\ChatGPT\Functions\Function\GPTProperties;
+use DvTeam\ChatGPT\Functions\Function\Types\GPTNumberProperty;
+use DvTeam\ChatGPT\Functions\GPTFunction;
+use DvTeam\ChatGPT\Functions\GPTFunctions;
+use DvTeam\ChatGPT\MessageTypes\ChatInput;
+use DvTeam\ChatGPT\MessageTypes\ToolResult;
 
 $context = [new ChatInput('What is the current temperature in Berlin? Answer in de-DE.')];
 
