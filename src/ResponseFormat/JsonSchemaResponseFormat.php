@@ -1,6 +1,6 @@
 <?php
 
-namespace Kir\ChatGPT\ResponseFormat;
+namespace DvTeam\ChatGPT\ResponseFormat;
 
 use JsonSerializable;
 

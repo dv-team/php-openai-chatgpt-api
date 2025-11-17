@@ -1,9 +1,9 @@
 <?php
 
-namespace Kir\ChatGPT\MessageTypes;
+namespace DvTeam\ChatGPT\MessageTypes;
 
-use Kir\ChatGPT\Common\ChatMessage;
-use Kir\ChatGPT\Messages\ChatAttachment;
+use DvTeam\ChatGPT\Common\ChatMessage;
+use DvTeam\ChatGPT\Messages\ChatAttachment;
 
 class ChatInput implements ChatMessage {
 	public static function mk(string $content, string $role = 'user', ?ChatAttachment $attachment = null): ChatInput {

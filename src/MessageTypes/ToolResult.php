@@ -1,8 +1,8 @@
 <?php
 
-namespace Kir\ChatGPT\MessageTypes;
+namespace DvTeam\ChatGPT\MessageTypes;
 
-use Kir\ChatGPT\Common\ChatMessage;
+use DvTeam\ChatGPT\Common\ChatMessage;
 
 /**
  * Beschreibt ein Tool-Call-Result für den Message-Context, den das LLM ausführen lassen wollte.

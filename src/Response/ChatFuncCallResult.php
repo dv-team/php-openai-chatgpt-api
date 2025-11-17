@@ -1,8 +1,8 @@
 <?php
 
-namespace Kir\ChatGPT\Response;
+namespace DvTeam\ChatGPT\Response;
 
-use Kir\ChatGPT\MessageTypes\ToolCall;
+use DvTeam\ChatGPT\MessageTypes\ToolCall;
 
 class ChatFuncCallResult {
 	/**

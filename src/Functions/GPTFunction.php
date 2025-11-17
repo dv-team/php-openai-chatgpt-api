@@ -1,9 +1,9 @@
 <?php
 
-namespace Kir\ChatGPT\Functions;
+namespace DvTeam\ChatGPT\Functions;
 
+use DvTeam\ChatGPT\Functions\Function\GPTProperties;
 use JsonSerializable;
-use Kir\ChatGPT\Functions\Function\GPTProperties;
 
 class GPTFunction implements JsonSerializable {
 	/**

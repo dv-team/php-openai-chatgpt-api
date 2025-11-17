@@ -1,9 +1,9 @@
 <?php
 
-namespace Kir\ChatGPT\Functions\Function\Types;
+namespace DvTeam\ChatGPT\Functions\Function\Types;
 
-use Kir\ChatGPT\Functions\Function\GPTProperties;
-use Kir\ChatGPT\Functions\Function\GPTProperty;
+use DvTeam\ChatGPT\Functions\Function\GPTProperties;
+use DvTeam\ChatGPT\Functions\Function\GPTProperty;
 
 class GPTObjectProperty implements GPTProperty {
 	public function __construct(

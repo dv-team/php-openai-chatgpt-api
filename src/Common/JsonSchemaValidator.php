@@ -1,6 +1,6 @@
 <?php
 
-namespace Kir\ChatGPT\Common;
+namespace DvTeam\ChatGPT\Common;
 
 interface JsonSchemaValidator {
 	/**

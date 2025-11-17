@@ -1,6 +1,6 @@
 <?php
 
-namespace Kir\ChatGPT;
+namespace DvTeam\ChatGPT;
 
 use Stringable;
 

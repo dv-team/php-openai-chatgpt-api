@@ -1,8 +1,8 @@
 <?php
 
-namespace Kir\ChatGPT\PredefinedModels;
+namespace DvTeam\ChatGPT\PredefinedModels;
 
-use Kir\ChatGPT\Common\ChatModelName;
+use DvTeam\ChatGPT\Common\ChatModelName;
 
 class LLMMediumNoReasoning implements ChatModelName {
 	public function __toString(): string {

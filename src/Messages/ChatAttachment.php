@@ -1,6 +1,6 @@
 <?php
 
-namespace Kir\ChatGPT\Messages;
+namespace DvTeam\ChatGPT\Messages;
 
 interface ChatAttachment {
 }

@@ -1,26 +1,26 @@
 <?php
 
-namespace Kir\ChatGPT;
+namespace DvTeam\ChatGPT;
 
-use Kir\ChatGPT\Common\ChatEnquiry;
-use Kir\ChatGPT\Common\ChatMessage;
-use Kir\ChatGPT\Common\ChatModelName;
-use Kir\ChatGPT\Common\JSON;
-use Kir\ChatGPT\Common\JsonSchemaValidator;
-use Kir\ChatGPT\Common\MessageInterceptorInterface;
-use Kir\ChatGPT\Exceptions\InvalidResponseException;
-use Kir\ChatGPT\Exceptions\NoResponseFromAPI;
-use Kir\ChatGPT\Functions\GPTFunctions;
-use Kir\ChatGPT\Http\HttpPostInterface;
-use Kir\ChatGPT\Messages\ChatImageUrl;
-use Kir\ChatGPT\MessageTypes\ChatInput;
-use Kir\ChatGPT\MessageTypes\ToolCall;
-use Kir\ChatGPT\MessageTypes\ToolResult;
-use Kir\ChatGPT\PredefinedModels\LLMMediumNoReasoning;
-use Kir\ChatGPT\Response\ChatFuncCallResult;
-use Kir\ChatGPT\Response\ChatResponse;
-use Kir\ChatGPT\Response\ChatResponseChoice;
-use Kir\ChatGPT\ResponseFormat\JsonSchemaResponseFormat;
+use DvTeam\ChatGPT\Common\ChatEnquiry;
+use DvTeam\ChatGPT\Common\ChatMessage;
+use DvTeam\ChatGPT\Common\ChatModelName;
+use DvTeam\ChatGPT\Common\JSON;
+use DvTeam\ChatGPT\Common\JsonSchemaValidator;
+use DvTeam\ChatGPT\Common\MessageInterceptorInterface;
+use DvTeam\ChatGPT\Exceptions\InvalidResponseException;
+use DvTeam\ChatGPT\Exceptions\NoResponseFromAPI;
+use DvTeam\ChatGPT\Functions\GPTFunctions;
+use DvTeam\ChatGPT\Http\HttpPostInterface;
+use DvTeam\ChatGPT\Messages\ChatImageUrl;
+use DvTeam\ChatGPT\MessageTypes\ChatInput;
+use DvTeam\ChatGPT\MessageTypes\ToolCall;
+use DvTeam\ChatGPT\MessageTypes\ToolResult;
+use DvTeam\ChatGPT\PredefinedModels\LLMMediumNoReasoning;
+use DvTeam\ChatGPT\Response\ChatFuncCallResult;
+use DvTeam\ChatGPT\Response\ChatResponse;
+use DvTeam\ChatGPT\Response\ChatResponseChoice;
+use DvTeam\ChatGPT\ResponseFormat\JsonSchemaResponseFormat;
 use Opis\JsonSchema\Validator;
 use RuntimeException;
 

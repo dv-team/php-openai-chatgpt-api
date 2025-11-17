@@ -1,6 +1,6 @@
 <?php
 
-namespace Kir\ChatGPT\Http;
+namespace DvTeam\ChatGPT\Http;
 
 interface HttpPostInterface {
 	/**

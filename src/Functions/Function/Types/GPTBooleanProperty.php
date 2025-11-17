@@ -1,8 +1,8 @@
 <?php
 
-namespace Kir\ChatGPT\Functions\Function\Types;
+namespace DvTeam\ChatGPT\Functions\Function\Types;
 
-use Kir\ChatGPT\Functions\Function\GPTProperty;
+use DvTeam\ChatGPT\Functions\Function\GPTProperty;
 
 class GPTBooleanProperty implements GPTProperty {
 	/**

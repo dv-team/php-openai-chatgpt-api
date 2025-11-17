@@ -1,6 +1,6 @@
 <?php
 
-namespace Kir\ChatGPT\Response;
+namespace DvTeam\ChatGPT\Response;
 
 class ChatResponse {
 	/**

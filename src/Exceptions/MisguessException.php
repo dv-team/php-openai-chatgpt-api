@@ -1,6 +1,6 @@
 <?php
 
-namespace Kir\ChatGPT\Exceptions;
+namespace DvTeam\ChatGPT\Exceptions;
 
 use RuntimeException;
 

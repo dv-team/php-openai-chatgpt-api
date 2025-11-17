@@ -1,5 +1,5 @@
 {
-	"name": "rkr/openai-chatgpt-api",
+	"name": "dv-team/openai-chatgpt-api",
 	"description": "A PHP client for OpenAI's ChatGPT API",
 	"type": "library",
 	"license": "MIT",
@@ -24,7 +24,7 @@
 	},
 	"autoload": {
 		"psr-4": {
-			"Kir\\ChatGPT\\": "src/"
+			"DvTeam\\ChatGPT\\": "src/"
 		}
 	},
 	"scripts": {

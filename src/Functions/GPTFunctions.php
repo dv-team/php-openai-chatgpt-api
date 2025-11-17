@@ -1,6 +1,6 @@
 <?php
 
-namespace Kir\ChatGPT\Functions;
+namespace DvTeam\ChatGPT\Functions;
 
 use IteratorAggregate;
 use JsonSerializable;
