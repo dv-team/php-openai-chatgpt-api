@@ -4,6 +4,9 @@ namespace DvTeam\ChatGPT\ResponseFormat;
 
 use JsonSerializable;
 
+/**
+ * @phpstan-type TJsonSchema array{type: object, properties: list<mixed>}|object{type: object, properties: list<mixed>}
+ */
 class JsonSchemaResponseFormat implements JsonSerializable {
 	/**
 	 * @param mixed[] $schema
