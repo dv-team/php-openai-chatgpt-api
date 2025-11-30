@@ -28,6 +28,9 @@ use DvTeam\ChatGPT\ResponseFormat\JsonSchemaResponseFormat;
 use Opis\JsonSchema\Validator;
 use RuntimeException;
 
+/**
+ * @phpstan-import-type TUserLocation from WebSearchResponse
+ */
 class ChatGPT {
 	private JsonSchemaValidator $jsonSchemaValidator;
 	private MessageInterceptorInterface $messageInterceptor;
@@ -146,7 +149,7 @@ class ChatGPT {
 
 	/**
 	 * @param string $query
-	 * @param array{type: string, city?: string, region?: string, country?: string, timezone?: string}|null $userLocation
+	 * @param TUserLocation|null $userLocation
 	 * @param ChatModelName|null $model Optional model (defaults like chat)
 	 * @return WebSearchResponse
 	 * @throws \JsonException
@@ -183,7 +186,14 @@ class ChatGPT {
 
 		foreach($response->output as $output) {
 			if($output->type === 'message' && $output->status === 'completed') {
-				return new WebSearchResponse(output: $output, structure: $response);
+				return new WebSearchResponse(
+					output: $output,
+					structure: $response,
+					query: $query,
+					userLocation: $userLocation,
+					model: (string) $model,
+					effort: $reasoningEffort,
+				);
 			}
 		}
 

@@ -261,6 +261,65 @@ Notes
 - `webSearch` calls the Responses API with the `web_search` tool and returns the first completed message.
 - If you pass a non-reasoning model, no `reasoning.effort` is sent.
 
+Spezifische Klassen für den Chat-Context: WebSearchCall und WebSearchResult
+
+- `WebSearchCall` und `WebSearchResult` sind spezialisierte Klassen, um eine Websuche im Chat-Kontext als Tool-Call samt Ergebnis sauber abzubilden.
+- Typischer Ablauf: Tool-Call erzeugen, ins Context-Array legen, Ergebnis (Text oder Texte) als Tool-Result hinzufügen, mit `chat()` fortfahren.
+
+Schritt-für-Schritt aus einer WebSearchResponse
+
+```php
+use DvTeam\ChatGPT\MessageTypes\WebSearchCall;
+use DvTeam\ChatGPT\MessageTypes\WebSearchResult;
+
+// 1) Suche ausführen
+$search = $chat->webSearch(
+    query: 'Wichtigste Neuerungen in PHP 8.3',
+    userLocation: ['type' => 'approximate', 'country' => 'DE']
+);
+
+// 2) Dedizierten Tool-Call erzeugen (ID wird generiert)
+$call = $search->getWebSearchCall();
+
+// 3) Passendes Tool-Result aus der Response ableiten (inkl. Metadaten)
+$result = $search->getWebSearchResult($call->id);
+
+// 4) Beides in den Chat-Context geben und das Modell fortfahren lassen
+$ctx = [$call, $result];
+$response = $chat->chat(context: $ctx);
+```
+
+Manuelle Erstellung ohne vorherige WebSearchResponse
+
+```php
+use DvTeam\ChatGPT\MessageTypes\WebSearchCall;
+use DvTeam\ChatGPT\MessageTypes\WebSearchResult;
+
+// 1) Eigene ID erzeugen, um Call und Result zu verknüpfen
+$callId = 'web_' . bin2hex(random_bytes(6));
+
+// 2) Tool-Call mit Query und optionalen Parametern anlegen
+$call = new WebSearchCall(
+    $callId,
+    'Wichtigste Neuerungen in PHP 8.3',
+    ['type' => 'approximate', 'country' => 'DE'], // userLocation (optional)
+    'gpt-5.1',                                   // model (optional)
+    'medium'                                      // effort (optional: low|medium|high)
+);
+
+// 3) Tool-Result mit Text oder Texten hinzufügen (inkl. Metadaten möglich)
+$result = WebSearchResult::fromText($callId, 'PHP 8.3 bringt u.a. ...', [
+    'query' => 'Wichtigste Neuerungen in PHP 8.3',
+    'model' => 'gpt-5.1',
+    'effort' => 'medium',
+    'user_location' => ['type' => 'approximate', 'country' => 'DE'],
+]);
+
+// 4) Context aufbauen und chat() aufrufen
+$ctx = [$call, $result];
+$response = $chat->chat(context: $ctx);
+```
+
 ## Notes
 
 - The library converts image inputs into the Chat Completions message format automatically.
