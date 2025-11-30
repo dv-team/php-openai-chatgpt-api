@@ -82,8 +82,8 @@ echo $response->firstChoice()->result;
 Choose a model explicitly:
 
 ```php
-use DvTeam\ChatGPT\PredefinedModels\LLMSmallNoReasoning;   // gpt-4.1-mini
-use DvTeam\ChatGPT\PredefinedModels\LLMMediumNoReasoning;  // gpt-4.1
+use DvTeam\ChatGPT\PredefinedModels\LLMSmallNoReasoning;   // gpt-5-mini
+use DvTeam\ChatGPT\PredefinedModels\LLMMediumNoReasoning;  // gpt-5.1
 
 $response = $chat->chat(
     context: [new ChatInput('Explain traits in PHP.')],
@@ -190,7 +190,7 @@ echo $response->firstChoice()->result, "\n";
 
 ## Web Search
 
-Use `ChatGPT::webSearch(string $query, ?array $userLocation = null, ?ChatModelName $model = null): WebSearchResponse` to run an OpenAI web search via the Responses API. It issues a `web_search` tool call and returns a `WebSearchResponse` that you can inspect directly or feed back into a regular chat. The `model` is optional and follows the same pattern as `chat` (defaults to `LLMMediumNoReasoning`, i.e., `gpt-4.1`).
+Use `ChatGPT::webSearch(string $query, ?array $userLocation = null, ?ChatModelName $model = null): WebSearchResponse` to run an OpenAI web search via the Responses API. It issues a `web_search` tool call and returns a `WebSearchResponse` that you can inspect directly or feed back into a regular chat. The `model` is optional and follows the same pattern as `chat` (defaults to `LLMMediumNoReasoning`, i.e., `gpt-5.1`).
 
 - Optional `userLocation`: `['type' => 'exact|approximate', 'city' => string?, 'region' => string?, 'country' => string?, 'timezone' => string?]`
 - Quick accessors: `getFirstText()` (throws if missing) and `tryGetFirstText()` (nullable)
@@ -238,12 +238,75 @@ $response = $chat->chat(
 echo $response->firstChoice()->result->weight, "\n";
 ```
 
+Using webSearch with reasoning models and effort
+
+- You can pass a reasoning-capable model such as `LLMSmallReasoning`/`LLMMediumReasoning` to `webSearch`.
+- When you do, the client includes `reasoning.effort` in the API request automatically based on the model.
+
+```php
+use DvTeam\ChatGPT\PredefinedModels\LLMSmallReasoning;
+use DvTeam\ChatGPT\PredefinedModels\ReasoningEffort;
+
+$result = $chat->webSearch(
+    query: 'Aktuelle Heizölpreise in Berlin',
+    userLocation: ['type' => 'approximate', 'country' => 'DE'],
+    model: new LLMSmallReasoning(effort: ReasoningEffort::Medium)
+);
+
+echo $result->getFirstText();
+```
+
+Notes
+
+- `webSearch` calls the Responses API with the `web_search` tool and returns the first completed message.
+- If you pass a non-reasoning model, no `reasoning.effort` is sent.
+
 ## Notes
 
 - The library converts image inputs into the Chat Completions message format automatically.
 - When a JSON schema is supplied, responses are validated using `opis/json-schema`. Invalid responses throw an exception. 
   - You can bring your own JSON schema validator by implementing `JsonSchemaValidatorInterface`.
 - `ChatResponse::firstChoice()` is a convenience for the first returned choice.
+
+## Reasoning-Modelle und Effort
+
+Die Bibliothek bringt vordefinierte Reasoning-Modelle mit, bei denen du die gewünschte Reasoning-Intensität per `effort` festlegst. Unterstützte Werte sind `low`, `medium`, `high` (siehe `ReasoningEffort` Enum).
+
+- `LLMSmallReasoning` entspricht `gpt-5-mini` mit einstellbarem `effort`.
+- `LLMMediumReasoning` entspricht `gpt-5.1` mit einstellbarem `effort`.
+- Für eigene Modelle: `LLMCustomModel($model, effort: ?ReasoningEffort)`.
+
+Wenn ein Reasoning‑Modell (oder ein Custom‑Modell mit gesetztem `effort`) verwendet wird, setzt der Client automatisch das Feld `reasoning.effort` im Request – sowohl bei `chat()` als auch bei `webSearch()`.
+
+Beispiele
+
+```php
+use DvTeam\ChatGPT\PredefinedModels\LLMSmallReasoning;   // gpt-5-mini
+use DvTeam\ChatGPT\PredefinedModels\LLMMediumReasoning;  // gpt-5.1
+use DvTeam\ChatGPT\PredefinedModels\LLMCustomModel;
+use DvTeam\ChatGPT\PredefinedModels\ReasoningEffort;
+use DvTeam\ChatGPT\MessageTypes\ChatInput;
+
+// Kleines Reasoning-Modell mit mittlerem Effort
+$r1 = $chat->chat(
+    context: [new ChatInput('Erkläre kurz, wie Traits in PHP funktionieren.')],
+    model: new LLMSmallReasoning(effort: ReasoningEffort::Medium)
+);
+
+// Mittelgroßes Reasoning-Modell mit hohem Effort
+$r2 = $chat->chat(
+    context: [new ChatInput('Entwirf eine robuste Fehlerbehandlungsstrategie für eine REST-API in PHP.')],
+    model: new LLMMediumReasoning(effort: ReasoningEffort::High)
+);
+
+// Eigenes Modell mit explizitem Effort
+$r3 = $chat->chat(
+    context: [new ChatInput('Gib eine stichpunktartige Zusammenfassung aus.')],
+    model: new LLMCustomModel('gpt-5.1', effort: ReasoningEffort::Low)
+);
+
+echo $r1->firstChoice()->result, "\n";
+```
 
 ## License
 
