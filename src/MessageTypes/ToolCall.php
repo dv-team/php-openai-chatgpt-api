@@ -18,6 +18,6 @@ class ToolCall {
 		public string $name,
 		public array|object $arguments,
 		public string $type = 'function',
-		public string $role = 'assistant'
+		public string $role = 'assistant',
 	) {}
 }

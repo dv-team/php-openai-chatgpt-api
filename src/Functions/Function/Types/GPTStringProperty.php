@@ -25,15 +25,15 @@ class GPTStringProperty implements GPTProperty {
 		public readonly ?array $enum = null,
 		public readonly bool $required = false,
 	) {}
-	
+
 	public function getName(): string {
 		return $this->name;
 	}
-	
+
 	public function isRequired(): bool {
 		return $this->required;
 	}
-	
+
 	/**
 	 * @return array{
 	 *     type: 'string',
@@ -50,27 +50,27 @@ class GPTStringProperty implements GPTProperty {
 			'type' => 'string',
 		];
 
-		if ($this->description !== null) {
+		if($this->description !== null) {
 			$data['description'] = $this->description;
 		}
 
-		if ($this->minLength !== null) {
+		if($this->minLength !== null) {
 			$data['minLength'] = $this->minLength;
 		}
 
-		if ($this->maxLength !== null) {
+		if($this->maxLength !== null) {
 			$data['maxLength'] = $this->maxLength;
 		}
 
-		if ($this->pattern !== null) {
+		if($this->pattern !== null) {
 			$data['pattern'] = $this->pattern;
 		}
 
-		if ($this->format !== null) {
+		if($this->format !== null) {
 			$data['format'] = $this->format;
 		}
 
-		if ($this->enum !== null) {
+		if($this->enum !== null) {
 			$data['enum'] = $this->enum;
 		}
 

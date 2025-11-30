@@ -12,15 +12,15 @@ class GPTObjectProperty implements GPTProperty {
 		public readonly GPTProperties $properties,
 		public readonly bool $required = false,
 	) {}
-	
+
 	public function getName(): string {
 		return $this->name;
 	}
-	
+
 	public function isRequired(): bool {
 		return $this->required;
 	}
-	
+
 	/**
 	 * @return array{
 	 *     type: 'object',
@@ -36,11 +36,11 @@ class GPTObjectProperty implements GPTProperty {
 			'required' => $this->required,
 		];
 
-		if ($this->description !== null) {
+		if($this->description !== null) {
 			$data['description'] = $this->description;
 		}
 
-		if ($this->properties !== null) {
+		if($this->properties !== null) {
 			$data['properties'] = $this->properties;
 		}
 

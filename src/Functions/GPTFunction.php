@@ -49,7 +49,7 @@ class GPTFunction implements JsonSerializable {
 		return [
 			'name' => $this->name,
 			'description' => $this->description,
-			'parameters' => $parameters
+			'parameters' => $parameters,
 		];
 	}
 }

@@ -18,6 +18,6 @@ class ToolResult implements ChatMessage {
 		public string $toolCallId,
 		public string $name,
 		public mixed $content,
-		public string $role = 'tool'
+		public string $role = 'tool',
 	) {}
 }

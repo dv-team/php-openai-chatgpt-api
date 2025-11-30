@@ -9,6 +9,6 @@ class ChatResponseChoice {
 	 */
 	public function __construct(
 		public readonly mixed $result,
-		public readonly mixed $tools
+		public readonly mixed $tools,
 	) {}
 }

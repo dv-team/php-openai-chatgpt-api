@@ -188,6 +188,56 @@ $response = $chat->chat(context: $context, functions: $functions);
 echo $response->firstChoice()->result, "\n";
 ```
 
+## Web Search
+
+Use `ChatGPT::webSearch(string $query, ?array $userLocation = null, ?ChatModelName $model = null): WebSearchResponse` to run an OpenAI web search via the Responses API. It issues a `web_search` tool call and returns a `WebSearchResponse` that you can inspect directly or feed back into a regular chat. The `model` is optional and follows the same pattern as `chat` (defaults to `LLMMediumNoReasoning`, i.e., `gpt-4.1`).
+
+- Optional `userLocation`: `['type' => 'exact|approximate', 'city' => string?, 'region' => string?, 'country' => string?, 'timezone' => string?]`
+- Quick accessors: `getFirstText()` (throws if missing) and `tryGetFirstText()` (nullable)
+- Full raw payload available on `$response->structure`
+
+Example: search the web, then extract a typed value with a JSON schema
+
+```php
+use DvTeam\ChatGPT\MessageTypes\ChatInput;
+use DvTeam\ChatGPT\PredefinedModels\LLMImageToText; // maps to gpt-5
+use DvTeam\ChatGPT\PredefinedModels\LLMMediumNoReasoning;
+use DvTeam\ChatGPT\ResponseFormat\JsonSchemaResponseFormat;
+
+// 1) Perform a web search
+$search = $chat->webSearch(
+    query: 'What is the net weight of "Babyliss Pro GUNSTEELFX FX7870GSE" in kilograms?',
+    userLocation: [
+        'type' => 'approximate',
+        'country' => 'DE', // optional hints for localization
+    ],
+    model: new LLMImageToText(), // optional; choose a model explicitly
+);
+
+// 2) Provide the search result back to chat and extract a number
+$response = $chat->chat(
+    context: [
+        ChatInput::mk('Return the product weight in kilograms as JSON.'),
+        ChatInput::mk($search->getFirstText()),
+    ],
+    responseFormat: new JsonSchemaResponseFormat([
+        'name' => 'WeightResponse',
+        'schema' => [
+            'type' => 'object',
+            'properties' => [
+                'weight' => ['type' => 'number'],
+            ],
+            'required' => ['weight'],
+            'additionalProperties' => false,
+        ],
+    ]),
+    model: new LLMMediumNoReasoning(),
+    temperature: 0.1,
+);
+
+echo $response->firstChoice()->result->weight, "\n";
+```
+
 ## Notes
 
 - The library converts image inputs into the Chat Completions message format automatically.

@@ -12,15 +12,15 @@ class GPTArrayProperty implements GPTProperty {
 		public readonly ?GPTProperties $properties,
 		public readonly bool $required = false,
 	) {}
-	
+
 	public function getName(): string {
 		return $this->name;
 	}
-	
+
 	public function isRequired(): bool {
 		return $this->required;
 	}
-	
+
 	/**
 	 * @return array{
 	 *     type: 'array',
@@ -35,11 +35,11 @@ class GPTArrayProperty implements GPTProperty {
 			'name' => $this->name,
 		];
 
-		if ($this->description !== null) {
+		if($this->description !== null) {
 			$data['description'] = $this->description;
 		}
 
-		if ($this->properties !== null) {
+		if($this->properties !== null) {
 			$data['items'] = $this->properties;
 		}
 

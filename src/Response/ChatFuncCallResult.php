@@ -15,6 +15,6 @@ class ChatFuncCallResult {
 		public readonly string $id,
 		public readonly string $functionName,
 		public readonly object $arguments,
-		public readonly ToolCall $toolCallMessage
+		public readonly ToolCall $toolCallMessage,
 	) {}
 }

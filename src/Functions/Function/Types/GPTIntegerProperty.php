@@ -27,15 +27,15 @@ class GPTIntegerProperty implements GPTProperty {
 		public readonly ?array $enum = null,
 		public readonly bool $required = false,
 	) {}
-	
+
 	public function getName(): string {
 		return $this->name;
 	}
-	
+
 	public function isRequired(): bool {
 		return $this->required;
 	}
-	
+
 	/**
 	 * @return array{
 	 *     type: 'integer',
@@ -53,31 +53,31 @@ class GPTIntegerProperty implements GPTProperty {
 			'type' => 'integer',
 		];
 
-		if ($this->description !== null) {
+		if($this->description !== null) {
 			$data['description'] = $this->description;
 		}
 
-		if ($this->minimum !== null) {
+		if($this->minimum !== null) {
 			$data['minimum'] = $this->minimum;
 		}
 
-		if ($this->maximum !== null) {
+		if($this->maximum !== null) {
 			$data['maximum'] = $this->maximum;
 		}
 
-		if ($this->exclusiveMinimum !== null) {
+		if($this->exclusiveMinimum !== null) {
 			$data['exclusiveMinimum'] = $this->exclusiveMinimum;
 		}
 
-		if ($this->exclusiveMaximum !== null) {
+		if($this->exclusiveMaximum !== null) {
 			$data['exclusiveMaximum'] = $this->exclusiveMaximum;
 		}
 
-		if ($this->multipleOf !== null) {
+		if($this->multipleOf !== null) {
 			$data['multipleOf'] = $this->multipleOf;
 		}
 
-		if ($this->enum !== null) {
+		if($this->enum !== null) {
 			$data['enum'] = $this->enum;
 		}
 

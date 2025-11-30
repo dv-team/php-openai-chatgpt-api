@@ -12,9 +12,9 @@ class JsonSchemaResponseFormat implements JsonSerializable {
 	 * @param mixed[] $schema
 	 */
 	public function __construct(
-		public readonly array $schema
+		public readonly array $schema,
 	) {}
-	
+
 	/**
 	 * @return array{type: string, json_schema: mixed[]}
 	 */
@@ -23,8 +23,8 @@ class JsonSchemaResponseFormat implements JsonSerializable {
 			'type' => 'json_schema',
 			'json_schema' => [
 				'name' => 'Response',
-				'schema' => $this->schema
-			]
+				'schema' => $this->schema,
+			],
 		];
 	}
 }

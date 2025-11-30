@@ -15,15 +15,15 @@ class GPTBooleanProperty implements GPTProperty {
 		public readonly ?string $description = null,
 		public readonly bool $required = false,
 	) {}
-	
+
 	public function getName(): string {
 		return $this->name;
 	}
-	
+
 	public function isRequired(): bool {
 		return $this->required;
 	}
-	
+
 	/**
 	 * @return array{
 	 *     type: 'boolean',
@@ -35,7 +35,7 @@ class GPTBooleanProperty implements GPTProperty {
 			'type' => 'boolean',
 		];
 
-		if ($this->description !== null) {
+		if($this->description !== null) {
 			$data['description'] = $this->description;
 		}
 

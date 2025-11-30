@@ -18,14 +18,14 @@ class GPTFunctions implements JsonSerializable, IteratorAggregate {
 	) {
 		$this->functions = $functions;
 	}
-	
+
 	/**
 	 * @return Traversable<GPTFunction>
 	 */
 	public function getIterator(): Traversable {
 		yield from $this->functions;
 	}
-	
+
 	/**
 	 * @return array<mixed>
 	 */
@@ -34,6 +34,7 @@ class GPTFunctions implements JsonSerializable, IteratorAggregate {
 		foreach($this->functions as $function) {
 			$functions[] = $function->jsonSerialize();
 		}
+
 		return $functions;
 	}
 }
