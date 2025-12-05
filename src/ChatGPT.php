@@ -20,12 +20,16 @@ use DvTeam\ChatGPT\PredefinedModels\LLMCustomModel;
 use DvTeam\ChatGPT\PredefinedModels\LLMMediumNoReasoning;
 use DvTeam\ChatGPT\PredefinedModels\LLMMediumReasoning;
 use DvTeam\ChatGPT\PredefinedModels\LLMSmallReasoning;
+use DvTeam\ChatGPT\PredefinedModels\TextToSpeech\GPT4oMiniTextToSpeech;
+use DvTeam\ChatGPT\PredefinedModels\TextToSpeech\TextToSpeechModel;
 use DvTeam\ChatGPT\Response\ChatFuncCallResult;
 use DvTeam\ChatGPT\Response\ChatResponse;
 use DvTeam\ChatGPT\Response\ChatResponseChoice;
 use DvTeam\ChatGPT\Response\WebSearchResponse;
 use DvTeam\ChatGPT\ResponseFormat\JsonSchemaResponseFormat;
+use GuzzleHttp\Exception\ClientException;
 use Opis\JsonSchema\Validator;
+use Psr\Http\Client\ClientExceptionInterface;
 use RuntimeException;
 
 /**
@@ -201,6 +205,57 @@ class ChatGPT {
 	}
 
 	/**
+	 * @param string $text
+	 * @param string $voice
+	 * @param float $speed
+	 * @param string|null $instructions
+	 * @param TextToSpeechModel|null $model
+	 * @param string $format
+	 * @return string Binary audio data (e.g. WAV)
+	 */
+	public function textToSpeech(
+		string $text,
+		string $voice = 'alloy',
+		float $speed = 1.0,
+		?string $instructions = null,
+		TextToSpeechModel|null $model = null,
+		string $format = 'wav',
+	): string {
+		$model ??= new GPT4oMiniTextToSpeech();
+
+		$body = [
+			'model' => (string) $model,
+			'input' => $text,
+			'voice' => $voice,
+			'format' => $format,
+			'speed' => $speed,
+		];
+
+		if($instructions !== null && $instructions !== '') {
+			$body['instructions'] = $instructions;
+		}
+
+		$response = $this->httpPostClient->post(
+			'https://api.openai.com/v1/audio/speech',
+			$body,
+			[
+				'Authorization' => "Bearer {$this->token}",
+				'Content-Type' => 'application/json',
+				'Accept' => "audio/{$format}",
+			]
+		);
+
+		/** @var array{error?: array{message?: string}}|null $decoded */
+		$decoded = json_decode($response, true);
+		if(json_last_error() === JSON_ERROR_NONE && is_array($decoded) && isset($decoded['error'])) {
+			$message = $decoded['error']['message'] ?? 'Unknown error';
+			throw new RuntimeException("OpenAI TTS error: {$message}");
+		}
+
+		return $response;
+	}
+
+	/**
 	 * @param ChatEnquiry $enquiry
 	 * @return string
 	 */
@@ -299,8 +354,6 @@ class ChatGPT {
 				$body['tool_choice'] = 'auto';
 			}
 
-			printf("REQUEST: %s\n", JSON::stringify($body));
-
 			return $this->httpPostClient->post($uri, $body, $headers); // @phpstan-ignore-line
 		});
 	}
@@ -319,6 +372,7 @@ class ChatGPT {
 				return $model->effort->value ?? null;
 			}
 		}
+
 		return null;
 	}
 }
