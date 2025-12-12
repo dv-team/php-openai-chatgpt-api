@@ -92,8 +92,16 @@ class ChatGPT {
 			)
 		);
 
-		/** @var object{choices?: array<object{message?: object{content?: string, tool_calls?: object{id: string, function: object{name: string, arguments: string}}[]}, finish_reason: string}>} $responseData */
+		/** @var string|object{error?: object{message?: string}, choices?: array<object{message?: object{content?: string, tool_calls?: object{id: string, function: object{name: string, arguments: string}}[]}, finish_reason: string}>} $responseData */
 		$responseData = JSON::parse($responseRaw);
+
+		if(is_string($responseData)) {
+			throw new InvalidResponseException($responseData);
+		}
+
+		if($responseData->error ?? null) {
+			throw new InvalidResponseException($responseData->error->message ?? 'Unknown error');
+		}
 
 		$choices = $responseData->choices ?? [];
 		if(!count($choices)) {
