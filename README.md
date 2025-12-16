@@ -120,17 +120,14 @@ $response = $chat->chat(
         new ChatInput('Return the numbers 1..5 in a JSON object: {"items": [1,2,3,4,5]}'),
     ],
     responseFormat: new JsonSchemaResponseFormat([
-        'name' => 'Response',
-        'schema' => [
-            'type' => 'object',
-            'properties' => [
-                'items' => [
-                    'type' => 'array',
-                    'items' => ['type' => 'integer']
-                ],
+        'type' => 'object',
+        'properties' => [
+            'items' => [
+                'type' => 'array',
+                'items' => ['type' => 'integer']
             ],
-            'additionalProperties' => false,
         ],
+        'additionalProperties' => false,
     ])
 );
 
@@ -221,15 +218,12 @@ $response = $chat->chat(
         ChatInput::mk($search->getFirstText()),
     ],
     responseFormat: new JsonSchemaResponseFormat([
-        'name' => 'WeightResponse',
-        'schema' => [
-            'type' => 'object',
-            'properties' => [
-                'weight' => ['type' => 'number'],
-            ],
-            'required' => ['weight'],
-            'additionalProperties' => false,
+        'type' => 'object',
+        'properties' => [
+            'weight' => ['type' => 'number'],
         ],
+        'required' => ['weight'],
+        'additionalProperties' => false,
     ]),
     model: new LLMMediumNoReasoning(),
     temperature: 0.1,
