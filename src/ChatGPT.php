@@ -34,6 +34,101 @@ use RuntimeException;
 
 /**
  * @phpstan-import-type TUserLocation from WebSearchResponse
+ *
+ * @phpstan-type TError object{
+ *     message?: string,
+ *     type?: string,
+ *     param?: string|null,
+ *     code?: string|null
+ * }
+ *
+ * @phpstan-type TContent object{
+ *     type?: string,
+ *     text?: string|object{value?: string},
+ *     annotations?: mixed[],
+ *     logprobs?: mixed[]
+ * }
+ *
+ * @phpstan-type TFunction object{
+ *     name?: string,
+ *     arguments?: string
+ * }
+ *
+ * @phpstan-type TToolCall object{
+ *     id?: string,
+ *     type?: string,
+ *     function?: TFunction
+ * }
+ *
+ * @phpstan-type TOutputItem object{
+ *     id?: string,
+ *     type?: string,
+ *     status?: string,
+ *     content?: array<int, TContent>|string,
+ *     text?: string|object{value?: string},
+ *     role?: string,
+ *     tool_calls?: array<int, TToolCall>,
+ *     name?: string,
+ *     arguments?: string,
+ *     function?: TFunction,
+ *     call_id?: string
+ * }
+ *
+ * @phpstan-type TUsage object{
+ *     input_tokens?: int,
+ *     input_tokens_details?: object{cached_tokens?: int},
+ *     output_tokens?: int,
+ *     output_tokens_details?: object{reasoning_tokens?: int},
+ *     total_tokens?: int
+ * }
+ *
+ * @phpstan-type TResponseData object{
+ *     id?: string,
+ *     object?: string,
+ *     created_at?: int,
+ *     status?: string,
+ *     background?: bool,
+ *     billing?: object{payer?: string},
+ *     completed_at?: int|null,
+ *     error?: TError|null,
+ *     incomplete_details?: mixed,
+ *     instructions?: string|null,
+ *     max_output_tokens?: int|null,
+ *     max_tool_calls?: int|null,
+ *     model?: string,
+ *     output?: array<int, TOutputItem>,
+ *     output_text?: string|array<int, string>,
+ *     parallel_tool_calls?: bool,
+ *     previous_response_id?: string|null,
+ *     prompt_cache_key?: string|null,
+ *     prompt_cache_retention?: string|null,
+ *     reasoning?: object{
+ *         effort?: string,
+ *         summary?: string|null
+ *     },
+ *     safety_identifier?: string|null,
+ *     service_tier?: string,
+ *     store?: bool,
+ *     temperature?: float|int,
+ *     text?: object{
+ *         format?: object{
+ *             type?: string,
+ *             description?: string|null,
+ *             name?: string,
+ *             schema?: object,
+ *             strict?: bool
+ *         },
+ *         verbosity?: string
+ *     },
+ *     tool_choice?: string,
+ *     tools?: mixed[],
+ *     top_logprobs?: int,
+ *     top_p?: float|int,
+ *     truncation?: string,
+ *     usage?: TUsage,
+ *     user?: string|null,
+ *     metadata?: object
+ * }
  */
 class ChatGPT {
 	private JsonSchemaValidator $jsonSchemaValidator;
@@ -80,11 +175,14 @@ class ChatGPT {
 	): ChatResponse {
 		$model ??= new LLMMediumNoReasoning();
 
+		/** @var array<int, array{name: string, description: string, parameters: array<string, mixed>}> $functionPayload */
+		$functionPayload = $functions?->jsonSerialize() ?? [];
+
 		$responseRaw = $this->internalChatEnquiry(
 			new ChatEnquiry(
 				inputs: $context,
 				model: $model,
-				functions: $functions?->jsonSerialize() ?? [],
+				functions: $functionPayload,
 				responseFormat: $responseFormat?->jsonSerialize(),
 				maxTokens: $maxTokens,
 				temperature: $temperature,
@@ -92,7 +190,7 @@ class ChatGPT {
 			)
 		);
 
-		/** @var string|object{error?: object{message?: string}, choices?: array<object{message?: object{content?: string, tool_calls?: object{id: string, function: object{name: string, arguments: string}}[]}, finish_reason: string}>} $responseData */
+		/** @var TResponseData|string $responseData */
 		$responseData = JSON::parse($responseRaw);
 
 		if(is_string($responseData)) {
@@ -103,58 +201,71 @@ class ChatGPT {
 			throw new InvalidResponseException($responseData->error->message ?? 'Unknown error');
 		}
 
-		$choices = $responseData->choices ?? [];
-		if(!count($choices)) {
+		$output = $responseData->output ?? [];
+		if(!count($output) && !isset($responseData->output_text)) {
 			throw new NoResponseFromAPI('Invalid or incomplete response from OpenAI.');
 		}
 
-		$resultChoices = [];
-		foreach($choices as $choice) {
-			if($choice->finish_reason !== 'stop' && $choice->finish_reason !== 'tool_calls') {
+		$messageParts = [];
+		$toolResults = [];
+
+		foreach($output as $item) {
+			$type = $item->type ?? null;
+
+			if($type === 'message') {
+				$messageParts = array_merge($messageParts, $this->extractTextFromMessageOutput($item));
+
+				foreach($item->tool_calls ?? [] as $toolCall) {
+					$toolResults[] = $this->mapToolCallToResult($toolCall);
+				}
+
 				continue;
 			}
 
-			$message = $choice->message->content ?? null;
-			if($message !== null && $responseFormat instanceof JsonSchemaResponseFormat) {
-				$message = JSON::parse($message);
-				/** @var array{json_schema: mixed[]} $jsonSchema */
-				$jsonSchema = $responseFormat->jsonSerialize();
-				$result = $this->jsonSchemaValidator->validate($message, $jsonSchema['json_schema']);
-				if(!$result) {
-					throw new InvalidResponseException('Invalid response from OpenAI.');
-				}
+			if($type === 'function_call' || $type === 'tool_call') {
+				$toolResults[] = $this->mapToolCallToResult($item);
+				continue;
 			}
 
-			$toolResults = [];
-			foreach($choice->message->tool_calls ?? [] as $toolCall) {
-				$id = $toolCall->id;
-				$fnName = $toolCall->function->name;
-				$jsonArgs = $toolCall->function->arguments;
-
-				/** @var object $arguments */
-				$arguments = JSON::parse($jsonArgs);
-
-				if(!is_object($arguments)) {
-					throw new InvalidResponseException('Invalid or incomplete response from OpenAI.');
+			if($type === 'output_text' && isset($item->text)) {
+				$text = $this->normalizeTextValue($item->text);
+				if($text !== null) {
+					$messageParts[] = $text;
 				}
-
-				$toolResults[] = new ChatFuncCallResult(
-					id: $id,
-					functionName: $fnName,
-					arguments: $arguments,
-					toolCallMessage: new ToolCall(
-						id: $id,
-						name: $fnName,
-						arguments: $arguments
-					)
-				);
 			}
+		}
 
-			$resultChoices[] = new ChatResponseChoice(
+		// Fallback: some clients expose aggregated output_text on the root object
+		if(!count($messageParts) && isset($responseData->output_text)) {
+			if(is_array($responseData->output_text)) {
+				$messageParts = array_map(fn($t) => (string) $t, $responseData->output_text);
+			} elseif(is_string($responseData->output_text)) {
+				$messageParts = [$responseData->output_text];
+			}
+		}
+
+		$message = count($messageParts) ? trim(implode("\n", array_filter($messageParts, fn($part) => $part !== ''))) : null;
+
+		if($message !== null && $responseFormat instanceof JsonSchemaResponseFormat) {
+			$message = JSON::parse($message);
+			/** @var array{json_schema: mixed[]} $jsonSchema */
+			$jsonSchema = $responseFormat->jsonSerialize();
+			$result = $this->jsonSchemaValidator->validate($message, $jsonSchema['json_schema']);
+			if(!$result) {
+				throw new InvalidResponseException('Invalid response from OpenAI.');
+			}
+		}
+
+		if($message === null && !count($toolResults)) {
+			throw new NoResponseFromAPI('Invalid or incomplete response from OpenAI.');
+		}
+
+		$resultChoices = [
+			new ChatResponseChoice(
 				result: $message,
 				tools: $toolResults
-			);
-		}
+			),
+		];
 
 		return new ChatResponse(choices: $resultChoices);
 	}
@@ -272,56 +383,21 @@ class ChatGPT {
 			$cInputs = [];
 			foreach($enquiry->inputs as $input) {
 				if($input instanceof ChatInput) {
-					if($input->attachment instanceof ChatImageUrl) {
-						$cInputs[] = [
-							'role' => $input->role,
-							'content' => [[
-								'type' => 'text',
-								'text' => $input->content,
-							], [
-								'type' => 'image_url',
-								'image_url' => [
-									'url' => $input->attachment->url,
-								],
-							]],
-						];
-					} elseif($input->attachment === null) {
-						$cInputs[] = [
-							'role' => $input->role,
-							'content' => $input->content,
-						];
-					} else {
-						throw new RuntimeException('Invalid parameter');
-					}
+					$cInputs[] = $this->mapChatInputToResponseInput($input);
 				} elseif($input instanceof ToolCall) {
-					$cInputs[] = [
-						'role' => $input->role,
-						'tool_calls' => [[
-							'id' => $input->id,
-							'type' => $input->type,
-							'function' => [
-								'name' => $input->name,
-								'arguments' => JSON::stringify($input->arguments),
-							],
-						]],
-					];
+					$cInputs[] = $this->mapToolCallToResponseInput($input);
 				} elseif($input instanceof ToolResult) {
-					$cInputs[] = [
-						'role' => $input->role,
-						'tool_call_id' => $input->toolCallId,
-						'name' => $input->name,
-						'content' => JSON::stringify($input->content),
-					];
+					$cInputs[] = $this->mapToolResultToResponseInput($input);
 				} else {
 					throw new RuntimeException('Invalid parameter');
 				}
 			}
 
-			$uri = 'https://api.openai.com/v1/chat/completions';
+			$uri = 'https://api.openai.com/v1/responses';
 			$headers = ['Authorization' => "Bearer {$this->token}", 'Content-Type' => 'application/json'];
 			$body = [
 				'model' => (string) $enquiry->model,
-				'messages' => $cInputs,
+				'input' => $cInputs,
 			];
 
 			// For newer reasoning-capable models, include the configured effort if provided
@@ -331,13 +407,11 @@ class ChatGPT {
 			}
 
 			if($enquiry->responseFormat !== null) {
-				$body['response_format'] = $enquiry->responseFormat;
+				$body['text']['format'] = $this->mapResponseFormatForResponsesApi($enquiry->responseFormat);
 			}
 
-			if(str_starts_with($enquiry->model, 'gpt-5')) {
-				//$body['max_completion'] = $enquiry->maxTokens;
-			} else {
-				$body['max_tokens'] = $enquiry->maxTokens;
+			if($enquiry->maxTokens !== null) {
+				$body['max_output_tokens'] = $enquiry->maxTokens;
 			}
 
 			if($enquiry->temperature !== null) {
@@ -352,18 +426,248 @@ class ChatGPT {
 				$tools = [];
 
 				foreach($enquiry->functions as $function) {
-					$tools[] = [
-						'type' => 'function',
-						'function' => $function,
-					];
+					$function['type'] = 'function';
+					$tools[] = $function;
 				}
 
 				$body['tools'] = $tools;
 				$body['tool_choice'] = 'auto';
 			}
 
-			return $this->httpPostClient->post($uri, $body, $headers); // @phpstan-ignore-line
+			return $this->httpPostClient->post($uri, $body, $headers);
 		});
+	}
+
+	/**
+	 * Map a ChatInput (optionally with an image) to the Responses API input schema.
+	 *
+	 * @return array{role: string, content: array<int, array{type: string, text?: string, image_url?: array{url: string}}>}
+	 */
+	private function mapChatInputToResponseInput(ChatInput $input): array {
+		$textType = $input->role === 'assistant' ? 'output_text' : 'input_text';
+
+		$content = [[
+			'type' => $textType,
+			'text' => $input->content,
+		]];
+
+		if($input->attachment instanceof ChatImageUrl) {
+			$content[] = [
+				'type' => 'input_image_url',
+				'image_url' => [
+					'url' => $input->attachment->url,
+				],
+			];
+		} elseif($input->attachment !== null) {
+			throw new RuntimeException('Invalid parameter');
+		}
+
+		return [
+			'role' => $input->role,
+			'content' => $content,
+		];
+	}
+
+	/**
+	 * Map an assistant tool-call message to the Responses API input schema.
+	 *
+	 * @return array{type: 'function_call', call_id: string, name: string, arguments: string}
+	 */
+	private function mapToolCallToResponseInput(ToolCall $input): array {
+		return [
+			'type' => 'function_call',
+			'call_id' => $input->id,
+			'name' => $input->name,
+			'arguments' => JSON::stringify($input->arguments),
+		];
+	}
+
+	/**
+	 * Map a tool-result message to the Responses API input schema.
+	 *
+	 * @return array{type: 'function_call_output', call_id: string, output: string}
+	 */
+	private function mapToolResultToResponseInput(ToolResult $input): array {
+		$output = $input->content;
+		if(is_array($output) || is_object($output)) {
+			$output = JSON::stringify($output);
+		} elseif($output === null) {
+			$output = '';
+		} elseif(!is_string($output)) {
+			$output = (string) $output;
+		}
+
+		return [
+			'type' => 'function_call_output',
+			'call_id' => $input->toolCallId,
+			'output' => $output,
+		];
+	}
+
+	/**
+	 * Extract concatenated text content from a message output item.
+	 *
+	 * @return string[]
+	 */
+	private function extractTextFromMessageOutput(object $message): array {
+		$content = $message->content ?? null;
+
+		if(is_string($content)) {
+			return [$content];
+		}
+
+		$textParts = [];
+		if(is_array($content)) {
+			foreach($content as $part) {
+				$text = null;
+				if(is_object($part)) {
+					if(isset($part->text)) {
+						$text = $this->normalizeTextValue($part->text);
+					} elseif(isset($part->type) && $part->type === 'output_text' && isset($part->text)) {
+						$text = $this->normalizeTextValue($part->text);
+					}
+				}
+
+				if($text !== null) {
+					$textParts[] = $text;
+				}
+			}
+		}
+
+		return $textParts;
+	}
+
+	private function normalizeTextValue(mixed $text): ?string {
+		if(is_string($text)) {
+			return $text;
+		}
+
+		if(is_object($text) && isset($text->value)) {
+			return (string) $text->value;
+		}
+
+		return null;
+	}
+
+	/**
+	 * Convert a Responses API tool call (or tool_call/tool message) to our ChatFuncCallResult.
+	 */
+	private function mapToolCallToResult(object $toolCall): ChatFuncCallResult {
+		$fnName = $toolCall->function->name ?? $toolCall->name ?? null;
+		$argumentsRaw = $toolCall->function->arguments ?? $toolCall->arguments ?? null;
+		$id = $toolCall->call_id ?? $toolCall->id ?? null;
+
+		if($fnName === null || $argumentsRaw === null || $id === null) {
+			throw new InvalidResponseException('Invalid or incomplete response from OpenAI.');
+		}
+
+		$arguments = $this->normalizeToolArguments($argumentsRaw);
+
+		return new ChatFuncCallResult(
+			id: $id,
+			functionName: $fnName,
+			arguments: $arguments,
+			toolCallMessage: new ToolCall(
+				id: $id,
+				name: $fnName,
+				arguments: $arguments
+			)
+		);
+	}
+
+	private function normalizeToolArguments(mixed $argumentsRaw): object {
+		if(is_string($argumentsRaw)) {
+			$arguments = JSON::parse($argumentsRaw);
+		} elseif(is_object($argumentsRaw)) {
+			$arguments = $argumentsRaw;
+		} elseif(is_array($argumentsRaw)) {
+			$arguments = JSON::parse(JSON::stringify($argumentsRaw));
+		} else {
+			throw new InvalidResponseException('Invalid or incomplete response from OpenAI.');
+		}
+
+		if(!is_object($arguments)) {
+			throw new InvalidResponseException('Invalid or incomplete response from OpenAI.');
+		}
+
+		return $arguments;
+	}
+
+	/**
+	 * Convert the library's responseFormat (legacy chat shape) to the Responses API shape.
+	 *
+	 * For JSON schema, the Responses API expects: ["type" => "json_schema", "name" => string, "schema" => object, "strict" => bool]
+	 *
+	 * @param array<string, mixed>|object $format
+	 * @return array<string, mixed>
+	 */
+	private function mapResponseFormatForResponsesApi(array|object $format): array {
+		if(is_object($format)) {
+			$format = (array) $format;
+		}
+
+		if(($format['type'] ?? null) === 'json_schema') {
+			$jsonSchema = $format['json_schema'] ?? [];
+			if(is_object($jsonSchema)) {
+				$jsonSchema = (array) $jsonSchema;
+			}
+
+			$name = $jsonSchema['name'] ?? 'Response';
+			$schema = $this->enforceResponsesJsonSchema($jsonSchema['schema'] ?? []);
+			$strict = $jsonSchema['strict'] ?? true;
+
+			return [
+				'type' => 'json_schema',
+				'name' => $name,
+				'schema' => $schema,
+				'strict' => $strict,
+			];
+		}
+
+		return $format;
+	}
+
+	/**
+	 * OpenAI Responses API requires explicit required keys and additionalProperties on every object.
+	 */
+	private function enforceResponsesJsonSchema(mixed $schema): mixed {
+		if(is_object($schema)) {
+			$schema = (array) $schema;
+		}
+
+		if(!is_array($schema)) {
+			return $schema;
+		}
+
+		$type = $schema['type'] ?? null;
+
+		if($type === 'object') {
+			$properties = $schema['properties'] ?? [];
+			if(is_object($properties)) {
+				$properties = (array) $properties;
+			}
+
+			if(is_array($properties)) {
+				foreach($properties as $key => $propSchema) {
+					$properties[$key] = $this->enforceResponsesJsonSchema($propSchema);
+				}
+				$schema['properties'] = $properties;
+
+				if(!isset($schema['required'])) {
+					$schema['required'] = array_keys($properties);
+				}
+			}
+
+			if(!array_key_exists('additionalProperties', $schema)) {
+				$schema['additionalProperties'] = false;
+			}
+		}
+
+		if($type === 'array' && isset($schema['items'])) {
+			$schema['items'] = $this->enforceResponsesJsonSchema($schema['items']);
+		}
+
+		return $schema;
 	}
 
 	private function getReasoningEffort(ChatModelName $model): ?string {

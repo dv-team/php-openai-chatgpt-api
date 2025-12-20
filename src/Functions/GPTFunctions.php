@@ -7,6 +7,8 @@ use JsonSerializable;
 use Traversable;
 
 /**
+ * @phpstan-import-type TFunction from GPTFunction
+ *
  * @implements IteratorAggregate<GPTFunction>
  */
 class GPTFunctions implements JsonSerializable, IteratorAggregate {
@@ -27,7 +29,7 @@ class GPTFunctions implements JsonSerializable, IteratorAggregate {
 	}
 
 	/**
-	 * @return array<mixed>
+	 * @return TFunction[]
 	 */
 	public function jsonSerialize(): array {
 		$functions = [];

@@ -2,10 +2,17 @@
 
 namespace DvTeam\ChatGPT\Common;
 
+/**
+ * @phpstan-type TFunction array{
+ *     name: string,
+ *     description?: string,
+ *     parameters: array<string, mixed>
+ * }
+ */
 class ChatEnquiry {
 	/**
 	 * @param ChatMessage[] $inputs
-	 * @param mixed[] $functions
+	 * @param TFunction[] $functions
 	 * @param null|mixed[] $responseFormat
 	 * @param null|float $temperature The temperature as described in the [here](https://community.openai.com/t/cheat-sheet-mastering-temperature-and-top-p-in-chatgpt-api/172683).
 	 */

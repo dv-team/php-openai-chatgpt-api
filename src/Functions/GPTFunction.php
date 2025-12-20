@@ -5,6 +5,17 @@ namespace DvTeam\ChatGPT\Functions;
 use DvTeam\ChatGPT\Functions\Function\GPTProperties;
 use JsonSerializable;
 
+/**
+ * @phpstan-type TFunction array{
+ *      name: string,
+ *      description: string,
+ *      parameters: array{
+ *          type: 'object',
+ *          properties: mixed[],
+ *          required?: string[]
+ *      }
+ *  }
+ */
 class GPTFunction implements JsonSerializable {
 	/**
 	 * @param string $name
@@ -18,15 +29,7 @@ class GPTFunction implements JsonSerializable {
 	) {}
 
 	/**
-	 * @return array{
-	 *     name: string,
-	 *     description: string,
-	 *     parameters: array{
-	 *         type: 'object',
-	 *         properties: array<mixed>,
-	 *         required?: string[]
-	 *     }
-	 * }
+	 * @return TFunction
 	 */
 	public function jsonSerialize(): array {
 		$required = [];
