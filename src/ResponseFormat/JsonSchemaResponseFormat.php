@@ -13,6 +13,7 @@ class JsonSchemaResponseFormat implements JsonSerializable {
 	 */
 	public function __construct(
 		public readonly array $schema,
+		public readonly bool $strict = false,
 	) {}
 
 	/**
@@ -24,6 +25,7 @@ class JsonSchemaResponseFormat implements JsonSerializable {
 			'json_schema' => [
 				'name' => 'Response',
 				'schema' => $this->schema,
+				'strict' => $this->strict
 			],
 		];
 	}
