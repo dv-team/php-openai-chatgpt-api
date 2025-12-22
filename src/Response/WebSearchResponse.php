@@ -75,7 +75,7 @@ class WebSearchResponse {
 	/**
 	 * Create a dedicated WebSearchResult message to pair with a WebSearchCall.
 	 */
-	public function getWebSearchResult(): WebSearchResult {
+	public function getWebSearchResponse(): WebSearchResult {
 		$extra = [
 			'texts' => $this->getTexts(),
 			'query' => $this->query,
