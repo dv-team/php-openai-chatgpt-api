@@ -35,46 +35,81 @@ use RuntimeException;
 /**
  * @phpstan-import-type TUserLocation from WebSearchResponse
  *
- * @phpstan-type TError object{
+ * @phpstan-type TRequestContentItem object{
+ *     type: string,
+ *     text?: string
+ * }
+ *
+ * @phpstan-type TRequestMessageInput object{
+ *     role: string,
+ *     content: array<int, TRequestContentItem>
+ * }
+ *
+ * @phpstan-type TRequestFormatSchema object{
+ *     type: string,
+ *     properties?: object,
+ *     required?: array<int, string>,
+ *     additionalProperties?: bool
+ * }
+ *
+ * @phpstan-type TRequestTextFormat object{
+ *     type: string,
+ *     name?: string,
+ *     schema?: TRequestFormatSchema,
+ *     strict?: bool
+ * }
+ *
+ * @phpstan-type TRequestTextConfig object{
+ *     format?: TRequestTextFormat,
+ *     max_output_tokens?: int
+ * }
+ *
+ * @phpstan-type TRequestData object{
+ *     model: string,
+ *     input: array<int, TRequestMessageInput>,
+ *     text?: TRequestTextConfig
+ * }
+ *
+ * @phpstan-type TResponseError object{
  *     message?: string,
  *     type?: string,
  *     param?: string|null,
  *     code?: string|null
  * }
  *
- * @phpstan-type TContent object{
+ * @phpstan-type TResponseContent object{
  *     type?: string,
  *     text?: string|object{value?: string},
  *     annotations?: mixed[],
  *     logprobs?: mixed[]
  * }
  *
- * @phpstan-type TFunction object{
+ * @phpstan-type TResponseFunction object{
  *     name?: string,
  *     arguments?: string
  * }
  *
- * @phpstan-type TToolCall object{
+ * @phpstan-type TResponseToolCall object{
  *     id?: string,
  *     type?: string,
- *     function?: TFunction
+ *     function?: TResponseFunction
  * }
  *
- * @phpstan-type TOutputItem object{
+ * @phpstan-type TResponseOutputItem object{
  *     id?: string,
  *     type?: string,
  *     status?: string,
- *     content?: array<int, TContent>|string,
+ *     content?: array<int, TResponseContent>|string,
  *     text?: string|object{value?: string},
  *     role?: string,
- *     tool_calls?: array<int, TToolCall>,
+ *     tool_calls?: array<int, TResponseToolCall>,
  *     name?: string,
  *     arguments?: string,
- *     function?: TFunction,
+ *     function?: TResponseFunction,
  *     call_id?: string
  * }
  *
- * @phpstan-type TUsage object{
+ * @phpstan-type TResponseUsage object{
  *     input_tokens?: int,
  *     input_tokens_details?: object{cached_tokens?: int},
  *     output_tokens?: int,
@@ -82,52 +117,64 @@ use RuntimeException;
  *     total_tokens?: int
  * }
  *
+ * @phpstan-type TResponseBilling object{payer?: string}
+ *
+ * @phpstan-type TResponseReasoning object{
+ *     effort?: string,
+ *     summary?: string|null
+ * }
+ *
+ * @phpstan-type TResponseTextFormatSchema object
+ *
+ * @phpstan-type TResponseTextFormat object{
+ *     type?: string,
+ *     description?: string|null,
+ *     name?: string,
+ *     schema?: TResponseTextFormatSchema,
+ *     strict?: bool
+ * }
+ *
+ * @phpstan-type TResponseText object{
+ *     format?: TResponseTextFormat,
+ *     verbosity?: string
+ * }
+ *
+ * @phpstan-type TResponseMetadata object
+ *
  * @phpstan-type TResponseData object{
  *     id?: string,
  *     object?: string,
  *     created_at?: int,
  *     status?: string,
  *     background?: bool,
- *     billing?: object{payer?: string},
+ *     billing?: TResponseBilling,
  *     completed_at?: int|null,
- *     error?: TError|null,
+ *     error?: TResponseError|null,
  *     incomplete_details?: mixed,
  *     instructions?: string|null,
  *     max_output_tokens?: int|null,
  *     max_tool_calls?: int|null,
  *     model?: string,
- *     output?: array<int, TOutputItem>,
+ *     output?: array<int, TResponseOutputItem>,
  *     output_text?: string|array<int, string>,
  *     parallel_tool_calls?: bool,
  *     previous_response_id?: string|null,
  *     prompt_cache_key?: string|null,
  *     prompt_cache_retention?: string|null,
- *     reasoning?: object{
- *         effort?: string,
- *         summary?: string|null
- *     },
+ *     reasoning?: TResponseReasoning,
  *     safety_identifier?: string|null,
  *     service_tier?: string,
  *     store?: bool,
  *     temperature?: float|int,
- *     text?: object{
- *         format?: object{
- *             type?: string,
- *             description?: string|null,
- *             name?: string,
- *             schema?: object,
- *             strict?: bool
- *         },
- *         verbosity?: string
- *     },
+ *     text?: TResponseText,
  *     tool_choice?: string,
  *     tools?: mixed[],
  *     top_logprobs?: int,
  *     top_p?: float|int,
  *     truncation?: string,
- *     usage?: TUsage,
+ *     usage?: TResponseUsage,
  *     user?: string|null,
- *     metadata?: object
+ *     metadata?: TResponseMetadata
  * }
  */
 class ChatGPT {
@@ -180,7 +227,7 @@ class ChatGPT {
 
 		$responseRaw = $this->internalChatEnquiry(
 			new ChatEnquiry(
-				inputs: $context,
+				context: $context,
 				model: $model,
 				functions: $functionPayload,
 				responseFormat: $responseFormat?->jsonSerialize(),
@@ -244,9 +291,11 @@ class ChatGPT {
 			}
 		}
 
+		/** @var string $message */
 		$message = count($messageParts) ? trim(implode("\n", array_filter($messageParts, fn($part) => $part !== ''))) : null;
 
 		if($message !== null && $responseFormat instanceof JsonSchemaResponseFormat) {
+			/** @var object $message */
 			$message = JSON::parse($message);
 			/** @var array{json_schema: mixed[]} $jsonSchema */
 			$jsonSchema = $responseFormat->jsonSerialize();
@@ -256,18 +305,24 @@ class ChatGPT {
 			}
 		}
 
+		/** @var string|object|null $message */
 		if($message === null && !count($toolResults)) {
 			throw new NoResponseFromAPI('Invalid or incomplete response from OpenAI.');
 		}
 
-		$resultChoices = [
-			new ChatResponseChoice(
-				result: $message,
-				tools: $toolResults
-			),
-		];
+		$choice = new ChatResponseChoice(
+			result: $message,
+			textResult: is_string($message) ? $message : null,
+			objResult: is_object($message) ? $message : null,
+			tools: $toolResults
+		);
 
-		return new ChatResponse(choices: $resultChoices);
+		$context[] = $choice;
+
+		return new ChatResponse(
+			choices: [$choice],
+			enhancedContext: $context
+		);
 	}
 
 	/**
@@ -382,15 +437,12 @@ class ChatGPT {
 	private function internalChatEnquiry(ChatEnquiry $enquiry): string {
 		return $this->messageInterceptor->invoke($enquiry, function(ChatEnquiry $enquiry) {
 			$cInputs = [];
-			foreach($enquiry->inputs as $input) {
-				if($input instanceof ChatInput) {
-					$cInputs[] = $this->mapChatInputToResponseInput($input);
-				} elseif($input instanceof ToolCall) {
-					$cInputs[] = $this->mapToolCallToResponseInput($input);
-				} elseif($input instanceof ToolResult) {
-					$cInputs[] = $this->mapToolResultToResponseInput($input);
-				} else {
-					throw new RuntimeException('Invalid parameter');
+			foreach($enquiry->context as $input) {
+				if(!$input instanceof ChatMessage) {
+					throw new RuntimeException('Every input must be an instance of ChatMessage.');
+				}
+				foreach($input->jsonSerialize() as $cInput) {
+					$cInputs[] = $cInput;
 				}
 			}
 
@@ -437,72 +489,6 @@ class ChatGPT {
 
 			return $this->httpPostClient->post($uri, $body, $headers);
 		});
-	}
-
-	/**
-	 * Map a ChatInput (optionally with an image) to the Responses API input schema.
-	 *
-	 * @return array{role: string, content: array<int, array{type: string, text?: string, image_url?: array{url: string}}>}
-	 */
-	private function mapChatInputToResponseInput(ChatInput $input): array {
-		$textType = $input->role === 'assistant' ? 'output_text' : 'input_text';
-
-		$content = [[
-			'type' => $textType,
-			'text' => $input->content,
-		]];
-
-		if($input->attachment instanceof ChatImageUrl) {
-			$content[] = [
-				'type' => 'input_image_url',
-				'image_url' => [
-					'url' => $input->attachment->url,
-				],
-			];
-		} elseif($input->attachment !== null) {
-			throw new RuntimeException('Invalid parameter');
-		}
-
-		return [
-			'role' => $input->role,
-			'content' => $content,
-		];
-	}
-
-	/**
-	 * Map an assistant tool-call message to the Responses API input schema.
-	 *
-	 * @return array{type: 'function_call', call_id: string, name: string, arguments: string}
-	 */
-	private function mapToolCallToResponseInput(ToolCall $input): array {
-		return [
-			'type' => 'function_call',
-			'call_id' => $input->id,
-			'name' => $input->name,
-			'arguments' => JSON::stringify($input->arguments),
-		];
-	}
-
-	/**
-	 * Map a tool-result message to the Responses API input schema.
-	 *
-	 * @return array{type: 'function_call_output', call_id: string, output: string}
-	 */
-	private function mapToolResultToResponseInput(ToolResult $input): array {
-		$output = $input->content;
-		if(is_array($output) || is_object($output)) {
-			$output = JSON::stringify($output);
-		} elseif($output === null) {
-			$output = '';
-		} elseif(!is_string($output)) {
-			$output = (string) $output;
-		}
-
-		return [
-			'type' => 'function_call_output',
-			'call_id' => $input->toolCallId,
-			'output' => $output,
-		];
 	}
 
 	/**
