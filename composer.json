@@ -20,11 +20,17 @@
 		"phpstan/phpstan": "^1.12",
 		"rector/rector": "^1.2",
 		"guzzlehttp/guzzle": "^7.10",
-		"php-di/php-di": "^7.1"
+		"php-di/php-di": "^7.1",
+		"psr-mock/http-client-implementation": "^1.0"
 	},
 	"autoload": {
 		"psr-4": {
 			"DvTeam\\ChatGPT\\": "src/"
+		}
+	},
+	"autoload-dev": {
+		"psr-4": {
+			"DvTeam\\ChatGPT\\": "tests/"
 		}
 	},
 	"scripts": {

@@ -15,7 +15,7 @@ use PsrMock\Psr18\Client as MockClient;
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
-class ChatGPTTest extends TestCase {
+class ChatGPTSimpleTextTest extends TestCase {
 	use TestTools;
 
 	public function testChatReturnsParsedMessageAndSendsExpectedRequest(): void {
