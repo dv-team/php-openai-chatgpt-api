@@ -62,7 +62,7 @@ class WebSearchResponse {
 	/**
 	 * Create a dedicated WebSearchCall message based on this response metadata.
 	 */
-	public function getWebSearchCall(): WebSearchCall {
+	public function getWebSearchRequest(): WebSearchCall {
 		return new WebSearchCall(
 			$this->id,
 			$this->query,
