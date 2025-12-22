@@ -11,6 +11,7 @@ use RuntimeException;
  */
 class WebSearchResponse {
 	/**
+	 * @param string $id
 	 * @param object $output
 	 * @param object $structure
 	 * @param string $query
@@ -19,6 +20,7 @@ class WebSearchResponse {
 	 * @param string|null $effort
 	 */
 	public function __construct(
+		public readonly string $id,
 		public readonly object $output,
 		public readonly object $structure,
 		public readonly string $query,
@@ -60,10 +62,9 @@ class WebSearchResponse {
 	/**
 	 * Create a dedicated WebSearchCall message based on this response metadata.
 	 */
-	public function getWebSearchCall(?string $id = null): WebSearchCall {
-		$id = $id ?? ('web_' . substr(sha1($this->query . microtime(true)), 0, 12));
+	public function getWebSearchCall(): WebSearchCall {
 		return new WebSearchCall(
-			$id,
+			$this->id,
 			$this->query,
 			$this->userLocation,
 			$this->model,
@@ -74,7 +75,7 @@ class WebSearchResponse {
 	/**
 	 * Create a dedicated WebSearchResult message to pair with a WebSearchCall.
 	 */
-	public function getWebSearchResult(string $toolCallId): WebSearchResult {
+	public function getWebSearchResult(): WebSearchResult {
 		$extra = [
 			'texts' => $this->getTexts(),
 			'query' => $this->query,
@@ -82,6 +83,6 @@ class WebSearchResponse {
 			'effort' => $this->effort,
 			'user_location' => $this->userLocation,
 		];
-		return WebSearchResult::fromText($toolCallId, $this->getFirstText(), $extra);
+		return WebSearchResult::fromText($this->id, $this->getFirstText(), $extra);
 	}
 }

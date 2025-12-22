@@ -304,12 +304,13 @@ class ChatGPT {
 			'Content-Type' => 'application/json',
 		]);
 
-		/** @var object{output: object{type: string, status: string}[]} $response */
+		/** @var object{id: string, output: object{type: string, status: string}[]} $response */
 		$response = JSON::parse($responseJson);
 
 		foreach($response->output as $output) {
 			if($output->type === 'message' && $output->status === 'completed') {
 				return new WebSearchResponse(
+					id: $response->id,
 					output: $output,
 					structure: $response,
 					query: $query,
