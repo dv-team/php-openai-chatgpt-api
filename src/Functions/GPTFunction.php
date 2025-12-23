@@ -9,9 +9,9 @@ use JsonSerializable;
  * @phpstan-type TFunction array{
  *      name: string,
  *      description: string,
- *      parameters: array{
+ *      parameters: object{
  *          type: 'object',
- *          properties: mixed[],
+ *          properties: object,
  *          required?: string[]
  *      }
  *  }
@@ -52,7 +52,7 @@ class GPTFunction implements JsonSerializable {
 		return [
 			'name' => $this->name,
 			'description' => $this->description,
-			'parameters' => $parameters,
+			'parameters' => (object) $parameters
 		];
 	}
 }

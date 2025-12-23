@@ -27,14 +27,14 @@ class GPTProperties implements JsonSerializable, IteratorAggregate {
 	}
 
 	/**
-	 * @return array<mixed>
+	 * @return object
 	 */
-	public function jsonSerialize(): array {
+	public function jsonSerialize(): object {
 		$data = [];
 		foreach($this->properties as $property) {
 			$data[$property->getName()] = $property->jsonSerialize();
 		}
 
-		return $data;
+		return (object) $data;
 	}
 }

@@ -2,12 +2,10 @@
 
 namespace DvTeam\ChatGPT\Common;
 
+use DvTeam\ChatGPT\Functions\GPTFunction;
+
 /**
- * @phpstan-type TFunction array{
- *     name: string,
- *     description?: string,
- *     parameters: array<string, mixed>
- * }
+ * @phpstan-import-type TFunction from GPTFunction
  */
 class ChatEnquiry {
 	/**

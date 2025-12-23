@@ -34,7 +34,8 @@
 		}
 	},
 	"scripts": {
-		"phpstan": "phpstan analyse -c phpstan.neon --memory-limit=2G"
+		"phpstan": "phpstan analyse -c phpstan.neon --memory-limit=2G",
+		"test": "phpunit"
 	},
 	"config": {
 		"discard-changes": true,

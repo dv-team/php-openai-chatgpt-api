@@ -10,6 +10,7 @@ use DvTeam\ChatGPT\Common\JsonSchemaValidator;
 use DvTeam\ChatGPT\Common\MessageInterceptorInterface;
 use DvTeam\ChatGPT\Exceptions\InvalidResponseException;
 use DvTeam\ChatGPT\Exceptions\NoResponseFromAPI;
+use DvTeam\ChatGPT\Functions\GPTFunction;
 use DvTeam\ChatGPT\Functions\GPTFunctions;
 use DvTeam\ChatGPT\Http\HttpPostInterface;
 use DvTeam\ChatGPT\Messages\ChatImageUrl;
@@ -34,6 +35,7 @@ use RuntimeException;
 
 /**
  * @phpstan-import-type TUserLocation from WebSearchResponse
+ * @phpstan-import-type TFunction from GPTFunction
  *
  * @phpstan-type TRequestContentItem object{
  *     type: string,
@@ -222,7 +224,7 @@ class ChatGPT {
 	): ChatResponse {
 		$model ??= new LLMMediumNoReasoning();
 
-		/** @var array<int, array{name: string, description: string, parameters: array<string, mixed>}> $functionPayload */
+		/** @var TFunction[] $functionPayload */
 		$functionPayload = $functions?->jsonSerialize() ?? [];
 
 		$responseRaw = $this->internalChatEnquiry(
@@ -314,7 +316,7 @@ class ChatGPT {
 			result: $message,
 			textResult: is_string($message) ? $message : null,
 			objResult: is_object($message) ? $message : null,
-			tools: $toolResults
+			tools: $toolResults,
 		);
 
 		$context[] = $choice;

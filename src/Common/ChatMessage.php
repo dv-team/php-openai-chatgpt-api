@@ -12,7 +12,7 @@ interface ChatMessage extends JsonSerializable {
 	public function addToContext(array $context): array;
 
 	/**
-	 * @return array{}[]
+	 * @return list<array<string, mixed>>
 	 */
 	public function jsonSerialize(): array;
 }

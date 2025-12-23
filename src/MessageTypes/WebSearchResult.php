@@ -2,21 +2,23 @@
 
 namespace DvTeam\ChatGPT\MessageTypes;
 
+use DvTeam\ChatGPT\Common\ChatMessage;
+
 /**
  * Spezielle Hilfsklasse für das Ergebnis einer Websuche im Chat-Kontext.
  *
  * Diese Klasse erweitert ToolResult, setzt standardmäßig den Namen
  * 'web_search' und erlaubt einfache Konstruktion aus Text/Texts.
  */
-class WebSearchResult extends ToolResult {
+class WebSearchResult implements ChatMessage {
 	/**
-	 * @param string $toolCallId ID des zugehörigen WebSearchCall
+	 * @param string $id ID des zugehörigen WebSearchCall
 	 * @param string|array<string, mixed> $content
-	 * @param string $name Werkzeugname (Standard: 'web_search')
 	 */
-	public function __construct(string $toolCallId, string|array $content, string $name = 'web_search') {
-		parent::__construct(toolCallId: $toolCallId, name: $name, content: $content, role: 'tool');
-	}
+	public function __construct(
+		public string $id,
+		public string|array $content
+	) {}
 
 	/**
 	 * Komfort: Einfaches Ergebnis mit einem Text.
@@ -42,6 +44,22 @@ class WebSearchResult extends ToolResult {
 	public static function fromTexts(string $toolCallId, array $texts, array $extra = []): self {
 		$content = array_merge(['texts' => array_values($texts)], $extra);
 		return new self($toolCallId, $content);
+	}
+
+	public function addToContext(array $context): array {
+		$context[] = $this;
+		return $context;
+	}
+
+	/**
+	 * @return list<array{type: 'tool_result', tool_id: string, content: mixed}>
+	 */
+	public function jsonSerialize(): array {
+		return [[
+			'type' => 'tool_result',
+			'tool_id' => $this->id,
+			'content' => $this->content,
+		]];
 	}
 }
 
