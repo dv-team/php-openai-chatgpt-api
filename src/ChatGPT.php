@@ -44,7 +44,10 @@ use RuntimeException;
  *
  * @phpstan-type TRequestMessageInput object{
  *     role: string,
- *     content: array<int, TRequestContentItem>
+ *     content: array<int, TRequestContentItem>,
+ *     type?: string,
+ *     call_id?: string,
+ *     output?: string
  * }
  *
  * @phpstan-type TRequestFormatSchema object{
@@ -69,7 +72,9 @@ use RuntimeException;
  * @phpstan-type TRequestData object{
  *     model: string,
  *     input: array<int, TRequestMessageInput>,
- *     text?: TRequestTextConfig
+ *     text?: TRequestTextConfig,
+ *     tools?: object{name?: string, type?: string}[],
+ *     tool_choice?: string
  * }
  *
  * @phpstan-type TResponseError object{
@@ -143,6 +148,11 @@ use RuntimeException;
  *
  * @phpstan-type TResponseMetadata object
  *
+ * @phpstan-type TTool object{
+ *     name?: string,
+ *     type?: string
+ * }
+ *
  * @phpstan-type TResponseData object{
  *     id?: string,
  *     object?: string,
@@ -170,7 +180,7 @@ use RuntimeException;
  *     temperature?: float|int,
  *     text?: TResponseText,
  *     tool_choice?: string,
- *     tools?: mixed[],
+ *     tools?: TTool[],
  *     top_logprobs?: int,
  *     top_p?: float|int,
  *     truncation?: string,

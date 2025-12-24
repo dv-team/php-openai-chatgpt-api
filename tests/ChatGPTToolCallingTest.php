@@ -21,6 +21,9 @@ use GuzzleHttp\Psr7\Response;
 use PHPUnit\Framework\TestCase;
 use PsrMock\Psr18\Client as MockClient;
 
+/**
+ * @phpstan-import-type TRequestData from ChatGPT
+ */
 class ChatGPTToolCallingTest extends TestCase {
 	use TestTools;
 
@@ -94,7 +97,9 @@ class ChatGPTToolCallingTest extends TestCase {
 		$this->assertNull($choice->result);
 		$this->assertCount(2, $choice->tools);
 
+		/** @var ChatFuncCallResult $firstTool */
 		$firstTool = $choice->tools[0];
+		/** @var ChatFuncCallResult $secondTool */
 		$secondTool = $choice->tools[1];
 
 		$this->assertInstanceOf(ChatFuncCallResult::class, $firstTool);
@@ -113,6 +118,7 @@ class ChatGPTToolCallingTest extends TestCase {
 		$timeline = $mockClient->getTimeline();
 		$this->assertCount(1, $timeline);
 
+		/** @var TRequestData $firstRequestData */
 		$firstRequestData = JSON::parse((string) $timeline[0]['request']->getBody());
 
 		$this->assertSame('Find the number for A and C.', $firstRequestData->input[0]->content[0]->text ?? null);
@@ -150,8 +156,14 @@ class ChatGPTToolCallingTest extends TestCase {
 
 		$context = $response->enhancedContext;
 
-		foreach($choice->tools as $tool) {
-			$context[] = new ToolResult($tool->id, match($tool->arguments->letter) {
+		/** @var ChatFuncCallResult[] $tools */
+		$tools = $choice->tools;
+
+		foreach($tools as $tool) {
+			/** @var object{letter: string} $args */
+			$args = $tool->arguments;
+
+			$context[] = new ToolResult($tool->id, match($args->letter) {
 				'A' => 1,
 				'C' => 3,
 				default => null
@@ -178,6 +190,7 @@ class ChatGPTToolCallingTest extends TestCase {
 		$timeline = $mockClient->getTimeline();
 		$this->assertCount(2, $timeline);
 
+		/** @var TRequestData $secondRequestData */
 		$secondRequestData = JSON::parse((string) $timeline[1]['request']->getBody());
 
 		$this->assertCount(6, $secondRequestData->input ?? []);
