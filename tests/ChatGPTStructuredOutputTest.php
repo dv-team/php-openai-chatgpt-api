@@ -83,7 +83,7 @@ class ChatGPTStructuredOutputTest extends TestCase {
 		$this->assertIsObject($response->firstChoice()->result);
 		$this->assertSame([1, 1, 1, 1, 2, 2], $response->firstChoice()->objResult->items ?? []);
 
-		$context = $response->enhancedContext;
+		$context = $response->firstChoice()->enhancedContext;
 
 		$this->assertCount(2, $context);
 		$this->assertInstanceOf(ChatInput::class, $context[0]);
@@ -124,7 +124,7 @@ class ChatGPTStructuredOutputTest extends TestCase {
 		$this->assertIsObject($response2->firstChoice()->result);
 		$this->assertSame([1, 1, 1, 1, 2, 2, 3, 3, 3], $response2->firstChoice()->result->items ?? []);
 
-		$context = $response2->enhancedContext;
+		$context = $response2->firstChoice()->enhancedContext;
 
 		$this->assertCount(4, $context);
 		$this->assertInstanceOf(ChatInput::class, $context[0]);

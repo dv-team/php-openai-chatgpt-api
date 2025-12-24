@@ -20,7 +20,7 @@ class ChatResponseChoice implements ChatMessage {
 		public readonly ?string $textResult,
 		public readonly ?object $objResult,
 		public readonly array $tools,
-		public readonly array $enhancedContext = [],
+		public array $enhancedContext = []
 	) {}
 
 	public function addToContext(array $context): array {

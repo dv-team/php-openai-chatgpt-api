@@ -111,9 +111,9 @@ class ChatGPTToolCallingTest extends TestCase {
 		$this->assertSame('C', $secondTool->arguments->letter ?? null);
 		$this->assertSame('call_number_c', $secondTool->id);
 
-		$this->assertCount(2, $response->enhancedContext);
-		$this->assertInstanceOf(ChatInput::class, $response->enhancedContext[0]);
-		$this->assertInstanceOf(ChatResponseChoice::class, $response->enhancedContext[1]);
+		$this->assertCount(2, $response->firstChoice()->enhancedContext);
+		$this->assertInstanceOf(ChatInput::class, $response->firstChoice()->enhancedContext[0]);
+		$this->assertInstanceOf(ChatResponseChoice::class, $response->firstChoice()->enhancedContext[1]);
 
 		$timeline = $mockClient->getTimeline();
 		$this->assertCount(1, $timeline);
@@ -154,7 +154,7 @@ class ChatGPTToolCallingTest extends TestCase {
 			new Response(200, ['Content-Type' => 'application/json'], self::jsonEncode($secondResponseBody))
 		);
 
-		$context = $response->enhancedContext;
+		$context = $response->firstChoice()->enhancedContext;
 
 		/** @var ChatFuncCallResult[] $tools */
 		$tools = $choice->tools;
@@ -185,7 +185,7 @@ class ChatGPTToolCallingTest extends TestCase {
 		$response2 = $chat->chat($context, functions: $wordFunctions);
 
 		$this->assertSame('Sun and Earth', $response2->firstChoice()->result);
-		$this->assertCount(6, $response2->enhancedContext);
+		$this->assertCount(6, $response2->firstChoice()->enhancedContext);
 
 		$timeline = $mockClient->getTimeline();
 		$this->assertCount(2, $timeline);

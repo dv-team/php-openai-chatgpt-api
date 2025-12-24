@@ -65,14 +65,14 @@ class ChatGPTSimpleTextTest extends TestCase {
 
 		$this->assertSame('The capital of France is Paris.', $response->firstChoice()->result);
 
-		$context = $response->enhancedContext;
+		$context = $response->firstChoice()->enhancedContext;
 
 		$this->assertCount(2, $context);
 
 		$this->assertInstanceOf(ChatInput::class, $context[0]);
 		$this->assertInstanceOf(ChatResponseChoice::class, $context[1]);
 
-		$context = $response->enhancedContext;
+		$context = $response->firstChoice()->enhancedContext;
 
 		$responseBody = (object) [
 			'id' => 'resp_456',
@@ -108,7 +108,7 @@ class ChatGPTSimpleTextTest extends TestCase {
 
 		$this->assertSame('Paris has approximately 2.1 to 2.2 million inhabitants.', $response2->firstChoice()->result);
 
-		$context = $response2->enhancedContext;
+		$context = $response2->firstChoice()->enhancedContext;
 
 		$this->assertCount(4, $context);
 

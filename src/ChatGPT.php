@@ -12,6 +12,7 @@ use DvTeam\ChatGPT\Exceptions\InvalidResponseException;
 use DvTeam\ChatGPT\Exceptions\NoResponseFromAPI;
 use DvTeam\ChatGPT\Functions\GPTFunction;
 use DvTeam\ChatGPT\Functions\GPTFunctions;
+use DvTeam\ChatGPT\Reflection\CallableInvoker;
 use DvTeam\ChatGPT\Http\HttpPostInterface;
 use DvTeam\ChatGPT\Messages\ChatImageUrl;
 use DvTeam\ChatGPT\MessageTypes\ChatInput;
@@ -322,18 +323,35 @@ class ChatGPT {
 			throw new NoResponseFromAPI('Invalid or incomplete response from OpenAI.');
 		}
 
+		$enhancedContext = $context;
+
 		$choice = new ChatResponseChoice(
 			result: $message,
 			textResult: is_string($message) ? $message : null,
 			objResult: is_object($message) ? $message : null,
 			tools: $toolResults,
+			enhancedContext: []
 		);
 
-		$context[] = $choice;
+		$enhancedContext[] = $choice;
+
+		if($functions !== null) {
+			foreach($toolResults as $tool) {
+				$callable = $functions->getCallable($tool->functionName);
+				if($callable === null) {
+					continue;
+				}
+
+				$result = CallableInvoker::invoke($callable, $tool->arguments);
+				/** @var array<string, mixed>|string|int|float|bool|null|object $result */
+				$enhancedContext[] = new ToolResult($tool->id, $result);
+			}
+		}
+
+		$choice->enhancedContext = $enhancedContext;
 
 		return new ChatResponse(
 			choices: [$choice],
-			enhancedContext: $context
 		);
 	}
 
