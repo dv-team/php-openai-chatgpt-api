@@ -4,6 +4,7 @@ namespace DvTeam\ChatGPT\Response;
 
 use DvTeam\ChatGPT\Common\ChatMessage;
 use DvTeam\ChatGPT\Common\JSON;
+use DvTeam\ChatGPT\MessageTypes\ToolCall;
 
 /**
  * @phpstan-type TextOutput array{role: 'assistant', content: list<array{type: 'output_text', text: string}>}
@@ -11,8 +12,7 @@ use DvTeam\ChatGPT\Common\JSON;
  */
 class ChatResponseChoice implements ChatMessage {
 	/**
-	 * @param ChatFuncCallResult[] $tools
-	 * @param ChatMessage[] $tools
+	 * @param object{toolCallMessage: ToolCall}[] $tools
 	 * @param ChatMessage[] $enhancedContext
 	 */
 	public function __construct(
