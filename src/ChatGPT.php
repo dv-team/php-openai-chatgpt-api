@@ -465,6 +465,89 @@ class ChatGPT {
 	}
 
 	/**
+	 * Build a callable GPT function that performs an OpenAI web search and returns the first text plus metadata.
+	 * If no defaults are provided, the LLM must supply user_location, model, and effort values.
+	 *
+	 * @param TUserLocation|null $defaultUserLocation
+	 * @param ChatModelName|null $defaultModel
+	 */
+	public function buildWebSearchFunction(
+		?array $defaultUserLocation = null,
+		?ChatModelName $defaultModel = null,
+	): CallableGPTFunction {
+		$properties = new GPTProperties(
+			new GPTStringProperty(
+				name: 'query',
+				description: 'The search query.',
+				required: true
+			),
+			new GPTObjectProperty(
+				name: 'user_location',
+				description: 'User location hints (exact|approximate, city, region, country, timezone). Required unless a default was supplied server-side.',
+				properties: new GPTProperties(
+					new GPTStringProperty('type', 'exact|approximate'),
+					new GPTStringProperty('city', 'City name'),
+					new GPTStringProperty('region', 'Region/state'),
+					new GPTStringProperty('country', 'Country code (ISO 3166-1 alpha-2)'),
+					new GPTStringProperty('timezone', 'IANA timezone')
+				),
+				required: $defaultUserLocation === null
+			),
+			new GPTStringProperty(
+				name: 'model',
+				description: 'Optional model name for web search (if omitted, server defaults apply). Agents must not request reasoning models.',
+				required: $defaultModel === null
+			),
+		);
+
+		return new CallableGPTFunction(
+			name: 'web_search',
+			description: 'Perform an OpenAI web search and return the first text result (plus metadata).',
+			properties: $properties,
+			callable: function(object $args) use ($defaultUserLocation, $defaultModel): array {
+				$query = $args->query ?? '';
+
+				/** @var TUserLocation|null $userLocation */
+				$userLocation = $defaultUserLocation ?? (isset($args->user_location) && is_object($args->user_location)
+					? (array) $args->user_location
+					: null);
+
+				$modelName = $defaultModel ?? (isset($args->model) && is_string($args->model) && $args->model !== ''
+					? new LLMCustomModel($args->model)
+					: null);
+
+				if($modelName === null) {
+					throw new InvalidResponseException('web_search requires a non-reasoning model name when no default is provided.');
+				}
+
+				// Agents must not request reasoning models explicitly; defaults may include reasoning.
+				if($defaultModel === null && ($this->getReasoningEffort($modelName) !== null || str_contains(strtolower((string) $modelName), 'reasoning'))) {
+					throw new InvalidResponseException('Reasoning models cannot be requested explicitly for web_search.');
+				}
+
+				if($userLocation === null) {
+					throw new InvalidResponseException('web_search requires user_location when no default is provided.');
+				}
+
+				$response = $this->webSearch(
+					query: (string) $query,
+					userLocation: $userLocation,
+					model: $modelName // enforce non-reasoning; getReasoningEffort guards it
+				);
+
+				return [
+					'text' => $response->getFirstText(),
+					'query' => $response->query,
+					'model' => $response->model,
+					'effort' => null,
+					'user_location' => $response->userLocation,
+					'response_id' => $response->id,
+				];
+			}
+		);
+	}
+
+	/**
 	 * @param ChatEnquiry $enquiry
 	 * @return string
 	 */
@@ -707,88 +790,5 @@ class ChatGPT {
 		}
 
 		return null;
-	}
-
-	/**
-	 * Build a callable GPT function that performs an OpenAI web search and returns the first text plus metadata.
-	 * If no defaults are provided, the LLM must supply user_location, model, and effort values.
-	 *
-	 * @param TUserLocation|null $defaultUserLocation
-	 * @param ChatModelName|null $defaultModel
-	 */
-	public function buildWebSearchFunction(
-		?array $defaultUserLocation = null,
-		?ChatModelName $defaultModel = null,
-	): CallableGPTFunction {
-		$properties = new GPTProperties(
-			new GPTStringProperty(
-				name: 'query',
-				description: 'The search query.',
-				required: true
-			),
-			new GPTObjectProperty(
-				name: 'user_location',
-				description: 'User location hints (exact|approximate, city, region, country, timezone). Required unless a default was supplied server-side.',
-				properties: new GPTProperties(
-					new GPTStringProperty('type', 'exact|approximate'),
-					new GPTStringProperty('city', 'City name'),
-					new GPTStringProperty('region', 'Region/state'),
-					new GPTStringProperty('country', 'Country code (ISO 3166-1 alpha-2)'),
-					new GPTStringProperty('timezone', 'IANA timezone')
-				),
-				required: $defaultUserLocation === null
-			),
-			new GPTStringProperty(
-				name: 'model',
-				description: 'Optional model name for web search (if omitted, server defaults apply). Agents must not request reasoning models.',
-				required: $defaultModel === null
-			),
-		);
-
-		return new CallableGPTFunction(
-			name: 'web_search',
-			description: 'Perform an OpenAI web search and return the first text result (plus metadata).',
-			properties: $properties,
-			callable: function(object $args) use ($defaultUserLocation, $defaultModel): array {
-				$query = $args->query ?? '';
-
-				/** @var TUserLocation|null $userLocation */
-				$userLocation = $defaultUserLocation ?? (isset($args->user_location) && is_object($args->user_location)
-					? (array) $args->user_location
-					: null);
-
-				$modelName = $defaultModel ?? (isset($args->model) && is_string($args->model) && $args->model !== ''
-					? new LLMCustomModel($args->model)
-					: null);
-
-				if($modelName === null) {
-					throw new InvalidResponseException('web_search requires a non-reasoning model name when no default is provided.');
-				}
-
-				// Agents must not request reasoning models explicitly; defaults may include reasoning.
-				if($defaultModel === null && ($this->getReasoningEffort($modelName) !== null || str_contains(strtolower((string) $modelName), 'reasoning'))) {
-					throw new InvalidResponseException('Reasoning models cannot be requested explicitly for web_search.');
-				}
-
-				if($userLocation === null) {
-					throw new InvalidResponseException('web_search requires user_location when no default is provided.');
-				}
-
-				$response = $this->webSearch(
-					query: (string) $query,
-					userLocation: $userLocation,
-					model: $modelName // enforce non-reasoning; getReasoningEffort guards it
-				);
-
-				return [
-					'text' => $response->getFirstText(),
-					'query' => $response->query,
-					'model' => $response->model,
-					'effort' => null,
-					'user_location' => $response->userLocation,
-					'response_id' => $response->id,
-				];
-			}
-		);
 	}
 }
