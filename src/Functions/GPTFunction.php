@@ -3,6 +3,7 @@
 namespace DvTeam\ChatGPT\Functions;
 
 use DvTeam\ChatGPT\Functions\Function\GPTProperties;
+use DvTeam\ChatGPT\ResponseFormat\JsonSchemaFormat;
 use JsonSerializable;
 
 /**
@@ -13,7 +14,8 @@ use JsonSerializable;
  *          type: 'object',
  *          properties: object,
  *          required?: string[]
- *      }
+ *      },
+ *      returns?: object
  *  }
  */
 class GPTFunction implements JsonSerializable {
@@ -21,11 +23,13 @@ class GPTFunction implements JsonSerializable {
 	 * @param string $name
 	 * @param string $description
 	 * @param GPTProperties $properties
+	 * @param null|JsonSchemaFormat $returns Optional return schema (JSON schema) for the function's return value
 	 */
 	public function __construct(
 		public readonly string $name,
 		public readonly string $description,
 		public readonly GPTProperties $properties,
+		public readonly ?JsonSchemaFormat $returns = null,
 	) {}
 
 	/**
@@ -49,10 +53,20 @@ class GPTFunction implements JsonSerializable {
 			$parameters['required'] = $required;
 		}
 
-		return [
+		/** @var TFunction $data */
+		$data = [
 			'name' => $this->name,
 			'description' => $this->description,
-			'parameters' => (object) $parameters
+			'parameters' => (object) $parameters,
 		];
+
+		if($this->returns !== null) {
+			$data['returns'] = (object) $this->returns->schema;
+			if($this->returns->strict !== null) {
+				$data['returns']->strict = $this->returns->strict;
+			}
+		}
+
+		return $data;
 	}
 }

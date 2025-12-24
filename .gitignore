@@ -3,6 +3,7 @@
 !/tests
 !/.editorconfig
 !/.gitignore
+!/AGENTS.md
 !/composer.json
 !/phpstan.neon
 !/phpunit.xml
