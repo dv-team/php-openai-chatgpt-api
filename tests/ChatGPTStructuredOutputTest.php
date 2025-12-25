@@ -7,8 +7,8 @@ namespace DvTeam\ChatGPT;
 use DvTeam\ChatGPT\Common\JSON;
 use DvTeam\ChatGPT\Common\TestTools;
 use DvTeam\ChatGPT\Http\Psr18HttpClient;
+use DvTeam\ChatGPT\GPTConversation;
 use DvTeam\ChatGPT\MessageTypes\ChatInput;
-use DvTeam\ChatGPT\Response\ChatResponseChoice;
 use DvTeam\ChatGPT\ResponseFormat\JsonSchemaResponseFormat;
 use GuzzleHttp\Psr7\HttpFactory;
 use GuzzleHttp\Psr7\Response;
@@ -76,18 +76,22 @@ class ChatGPTStructuredOutputTest extends TestCase {
 		);
 
 		$responseFormat = new JsonSchemaResponseFormat($schema);
-		$context = [new ChatInput('Erstelle mit eine Liste, wo die ersten vier Zahlen "1" sind und dann zwei mal 2 folgt.')];
+		$conversation = new GPTConversation(
+			$chat,
+			[new ChatInput('Erstelle mit eine Liste, wo die ersten vier Zahlen "1" sind und dann zwei mal 2 folgt.')],
+			responseFormat: $responseFormat,
+		);
 
-		$response = $chat->chat($context, responseFormat: $responseFormat);
+		$first = $conversation->step();
 
-		$this->assertIsObject($response->firstChoice()->result);
-		$this->assertSame([1, 1, 1, 1, 2, 2], $response->firstChoice()->objResult->items ?? []);
+		$this->assertIsObject($first->result);
+		$this->assertSame([1, 1, 1, 1, 2, 2], $first->objResult->items ?? []);
 
-		$context = $response->firstChoice()->enhancedContext;
+		$context = $conversation->getContext();
 
 		$this->assertCount(2, $context);
 		$this->assertInstanceOf(ChatInput::class, $context[0]);
-		$this->assertInstanceOf(ChatResponseChoice::class, $context[1]);
+		$this->assertInstanceOf(\DvTeam\ChatGPT\MessageTypes\ChatOutput::class, $context[1]);
 
 		$secondResponseBody = (object) [
 			'id' => 'resp_struct_456',
@@ -117,20 +121,20 @@ class ChatGPTStructuredOutputTest extends TestCase {
 			new Response(200, ['Content-Type' => 'application/json'], self::jsonEncode($secondResponseBody))
 		);
 
-		$context[] = new ChatInput('Füge der Liste drei 3 em Ende hinzu.');
+		$conversation->addMessage(new ChatInput('Füge der Liste drei 3 em Ende hinzu.'));
 
-		$response2 = $chat->chat($context, responseFormat: $responseFormat);
+		$second = $conversation->step();
 
-		$this->assertIsObject($response2->firstChoice()->result);
-		$this->assertSame([1, 1, 1, 1, 2, 2, 3, 3, 3], $response2->firstChoice()->result->items ?? []);
+		$this->assertIsObject($second->result);
+		$this->assertSame([1, 1, 1, 1, 2, 2, 3, 3, 3], $second->result->items ?? []);
 
-		$context = $response2->firstChoice()->enhancedContext;
+		$context = $conversation->getContext();
 
 		$this->assertCount(4, $context);
 		$this->assertInstanceOf(ChatInput::class, $context[0]);
-		$this->assertInstanceOf(ChatResponseChoice::class, $context[1]);
+		$this->assertInstanceOf(\DvTeam\ChatGPT\MessageTypes\ChatOutput::class, $context[1]);
 		$this->assertInstanceOf(ChatInput::class, $context[2]);
-		$this->assertInstanceOf(ChatResponseChoice::class, $context[3]);
+		$this->assertInstanceOf(\DvTeam\ChatGPT\MessageTypes\ChatOutput::class, $context[3]);
 
 		$timeline = $mockClient->getTimeline();
 		$this->assertCount(2, $timeline);

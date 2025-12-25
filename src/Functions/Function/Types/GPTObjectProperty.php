@@ -26,22 +26,31 @@ class GPTObjectProperty implements GPTProperty {
 	 *     type: 'object',
 	 *     name: string,
 	 *     description?: string,
-	 *     properties: GPTProperties,
+	 *     properties: object,
+	 *     required?: string[]
 	 * }
 	 */
 	public function jsonSerialize(): array {
 		$data = [
 			'type' => 'object',
 			'name' => $this->name,
-			'required' => $this->required,
 		];
 
 		if($this->description !== null) {
 			$data['description'] = $this->description;
 		}
 
-		if($this->properties !== null) {
-			$data['properties'] = $this->properties;
+		$data['properties'] = $this->properties->jsonSerialize();
+
+		$data['required'] = [];
+		foreach($this->properties as $property) {
+			if($property->isRequired()) {
+				$data['required'][] = $property->getName();
+			}
+		}
+
+		if(!count($data['required'])) {
+			unset($data['required']);
 		}
 
 		return $data;

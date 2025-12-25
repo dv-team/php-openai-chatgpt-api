@@ -6,11 +6,10 @@ namespace DvTeam\ChatGPT;
 
 use DvTeam\ChatGPT\Common\JSON;
 use DvTeam\ChatGPT\Common\TestTools;
-use DvTeam\ChatGPT\Functions\GPTFunctions;
 use DvTeam\ChatGPT\Http\Psr18HttpClient;
+use DvTeam\ChatGPT\GPTConversation;
 use DvTeam\ChatGPT\MessageTypes\ChatInput;
 use DvTeam\ChatGPT\MessageTypes\ToolResult;
-use DvTeam\ChatGPT\Reflection\GPTCallableFunctionFactory;
 use GuzzleHttp\Psr7\HttpFactory;
 use GuzzleHttp\Psr7\Response;
 use PHPUnit\Framework\TestCase;
@@ -61,22 +60,22 @@ class ChatGPTCallableFunctionTest extends TestCase {
 			httpPostClient: $httpClient
 		);
 
-		$callableFunction = GPTCallableFunctionFactory::fromCallable([Common\CallableTools::class, 'pickWord'], 'pick_word');
+		$conversation = new GPTConversation(
+			$chat,
+			[new ChatInput('Please pick a word for index 2.')],
+			[[Common\CallableTools::class, 'pickWord']]
+		);
 
-		$functions = new GPTFunctions($callableFunction);
+		$response = $conversation->step();
 
-		$context = [new ChatInput('Please pick a word for index 2.')];
+		$this->assertNull($response->result);
+		$this->assertCount(1, $response->tools);
 
-		$response = $chat->chat($context, functions: $functions);
-
-		$this->assertNull($response->firstChoice()->result);
-		$this->assertCount(1, $response->firstChoice()->tools);
-
-		// Tool result should have been injected automatically into the enhanced context.
-		$this->assertCount(3, $response->firstChoice()->enhancedContext);
-		$this->assertInstanceOf(ToolResult::class, $response->firstChoice()->enhancedContext[2]);
-		$this->assertSame('call_pick_word', $response->firstChoice()->enhancedContext[2]->toolCallId);
-		$this->assertSame('cherry', $response->firstChoice()->enhancedContext[2]->content);
+		// Tool result should have been injected automatically into the conversation context.
+		$this->assertCount(3, $conversation->getContext());
+		$this->assertInstanceOf(ToolResult::class, $conversation->getContext()[2]);
+		$this->assertSame('call_pick_word', $conversation->getContext()[2]->toolCallId);
+		$this->assertSame('cherry', $conversation->getContext()[2]->content);
 
 		$timeline = $mockClient->getTimeline();
 		$this->assertCount(1, $timeline);
@@ -84,7 +83,7 @@ class ChatGPTCallableFunctionTest extends TestCase {
 		/** @var object{tools?: array<int, object{name?: string, description?: string, parameters?: object}>} $requestData */
 		$requestData = JSON::parse((string) $timeline[0]['request']->getBody());
 		$this->assertSame('pick_word', $requestData->tools[0]->name ?? null);
-		$this->assertSame('Pick a word by index.', $requestData->tools[0]->description ?? null);
+		$this->assertSame('The index of the word to pick.', $requestData->tools[0]->description ?? null);
 		$this->assertSame('integer', $requestData->tools[0]->parameters->properties->index->type ?? null);
 	}
 }

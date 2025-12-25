@@ -6,16 +6,13 @@ namespace DvTeam\ChatGPT;
 
 use DvTeam\ChatGPT\Common\JSON;
 use DvTeam\ChatGPT\Common\TestTools;
-use DvTeam\ChatGPT\Functions\Function\GPTProperties;
-use DvTeam\ChatGPT\Functions\Function\Types\GPTNumberProperty;
-use DvTeam\ChatGPT\Functions\Function\Types\GPTStringProperty;
-use DvTeam\ChatGPT\Functions\GPTFunction;
-use DvTeam\ChatGPT\Functions\GPTFunctions;
+use DvTeam\ChatGPT\Attributes\GPTCallableDescriptor;
+use DvTeam\ChatGPT\Attributes\GPTParameterDescriptor;
 use DvTeam\ChatGPT\Http\Psr18HttpClient;
+use DvTeam\ChatGPT\GPTConversation;
 use DvTeam\ChatGPT\MessageTypes\ChatInput;
 use DvTeam\ChatGPT\MessageTypes\ToolResult;
 use DvTeam\ChatGPT\Response\ChatFuncCallResult;
-use DvTeam\ChatGPT\Response\ChatResponseChoice;
 use GuzzleHttp\Psr7\HttpFactory;
 use GuzzleHttp\Psr7\Response;
 use PHPUnit\Framework\TestCase;
@@ -78,22 +75,19 @@ class ChatGPTToolCallingTest extends TestCase {
 			httpPostClient: $httpClient
 		);
 
-		$functions = new GPTFunctions(
-			new GPTFunction(
-				name: 'get_number_by_letter',
-				description: 'Returns a number for a single letter.',
-				properties: new GPTProperties(
-					new GPTStringProperty(name: 'letter', description: 'The letter for which to return the number.', required: true)
-				)
-			)
+		$conversation = new GPTConversation(
+			$chat,
+			[new ChatInput('Find the number for A and C.')],
+			[
+				#[GPTCallableDescriptor(name: 'get_number_by_letter', description: 'Returns a number for a single letter.')]
+				function(#[GPTParameterDescriptor(['description' => 'The letter for which to return the number.'])] string $letter): ?int {
+					return match($letter) { 'A' => 1, 'B' => 2, 'C' => 3, default => null };
+				}
+			]
 		);
 
-		$context = [new ChatInput('Find the number for A and C.')];
+		$choice = $conversation->step();
 
-		$response = $chat->chat($context, functions: $functions);
-		$choice = $response->firstChoice();
-
-		$this->assertInstanceOf(ChatResponseChoice::class, $choice);
 		$this->assertNull($choice->result);
 		$this->assertCount(2, $choice->tools);
 
@@ -111,9 +105,11 @@ class ChatGPTToolCallingTest extends TestCase {
 		$this->assertSame('C', $secondTool->arguments->letter ?? null);
 		$this->assertSame('call_number_c', $secondTool->id);
 
-		$this->assertCount(2, $response->firstChoice()->enhancedContext);
-		$this->assertInstanceOf(ChatInput::class, $response->firstChoice()->enhancedContext[0]);
-		$this->assertInstanceOf(ChatResponseChoice::class, $response->firstChoice()->enhancedContext[1]);
+		$this->assertCount(4, $conversation->getContext());
+		$this->assertInstanceOf(ChatInput::class, $conversation->getContext()[0]);
+		$this->assertInstanceOf(\DvTeam\ChatGPT\MessageTypes\ChatOutput::class, $conversation->getContext()[1]);
+		$this->assertInstanceOf(ToolResult::class, $conversation->getContext()[2]);
+		$this->assertInstanceOf(ToolResult::class, $conversation->getContext()[3]);
 
 		$timeline = $mockClient->getTimeline();
 		$this->assertCount(1, $timeline);
@@ -154,38 +150,19 @@ class ChatGPTToolCallingTest extends TestCase {
 			new Response(200, ['Content-Type' => 'application/json'], self::jsonEncode($secondResponseBody))
 		);
 
-		$context = $response->firstChoice()->enhancedContext;
+		$conversation->addMessage(new ChatInput('Return the words for these numbers using get_a_word_by_number.'));
 
-		/** @var ChatFuncCallResult[] $tools */
-		$tools = $choice->tools;
+		$conversation->setTools([
+			#[GPTCallableDescriptor(name: 'get_a_word_by_number', description: 'Returns a word for a single number.')]
+			function(#[GPTParameterDescriptor(['description' => 'The number.'])] int $number): ?string {
+				return match($number) { 1 => 'Sun', 2 => 'Moon', 3 => 'Earth', default => null };
+			}
+		]);
 
-		foreach($tools as $tool) {
-			/** @var object{letter: string} $args */
-			$args = $tool->arguments;
+		$response2 = $conversation->step();
 
-			$context[] = new ToolResult($tool->id, match($args->letter) {
-				'A' => 1,
-				'C' => 3,
-				default => null
-			});
-		}
-
-		$context[] = new ChatInput('Return the words for these numbers using get_a_word_by_number.');
-
-		$wordFunctions = new GPTFunctions(
-			new GPTFunction(
-				name: 'get_a_word_by_number',
-				description: 'Returns a word for a single number.',
-				properties: new GPTProperties(
-					new GPTNumberProperty(name: 'number', description: 'The number.', required: true)
-				)
-			)
-		);
-
-		$response2 = $chat->chat($context, functions: $wordFunctions);
-
-		$this->assertSame('Sun and Earth', $response2->firstChoice()->result);
-		$this->assertCount(6, $response2->firstChoice()->enhancedContext);
+		$this->assertSame('Sun and Earth', $response2->result);
+		$this->assertCount(6, $conversation->getContext());
 
 		$timeline = $mockClient->getTimeline();
 		$this->assertCount(2, $timeline);

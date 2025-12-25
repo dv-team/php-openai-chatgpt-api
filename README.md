@@ -1,7 +1,8 @@
 # OpenAI ChatGPT API Client for PHP
 
-Lightweight PHP client for OpenAI’s Chat Completions API with:
-- Simple chat interface (`ChatGPT::chat`)
+Lightweight PHP client for OpenAI’s Responses API with:
+- Low-level client (`ChatGPT`) that performs a single API call with a given message list.
+- Stateful conversation helper (`GPTConversation`) that owns context, auto-runs tools locally, and lets you resume step by step.
 - Function calling (tools) with schema helpers
 - Structured JSON responses validated against a JSON Schema
 - Image inputs via URL
@@ -25,6 +26,7 @@ Example with a PSR-18 HTTP client. You can plug in any PSR-18 implementation; he
 
 use DvTeam\ChatGPT\ChatGPT;
 use DvTeam\ChatGPT\Http\Psr18HttpClient;
+use DvTeam\ChatGPT\GPTConversation;
 use DvTeam\ChatGPT\MessageTypes\ChatInput;
 use DvTeam\ChatGPT\OpenAIToken;
 use GuzzleHttp\Client as GuzzleClient;
@@ -44,26 +46,29 @@ $chat = new ChatGPT(
     httpPostClient: $http,
 );
 
-$response = $chat->chat([
-    ChatInput::mk('Write a short haiku about PHP.'),
-]);
+// Use GPTConversation to keep context on the server side.
+$conversation = new GPTConversation($chat, [ChatInput::mk('Write a short haiku about PHP.')]);
+$reply = $conversation->step();
 
-echo $response->firstChoice()->result, "\n";
+echo $reply->result, "\n";
 ```
 
-## Core API: `ChatGPT::chat`
+## Low-Level: `ChatGPT::chat`
 
 Signature (simplified):
 
 - `chat(array $context, ?GPTFunctions $functions = null, ?JsonSchemaResponseFormat $responseFormat = null, ?ChatModelName $model = null, int $maxTokens = 2500, ?float $temperature = null, ?float $topP = null): ChatResponse`
 
 Key concepts:
+
+- Pure stateless client: you pass the full message list; it returns a single model response.
+- No automatic tool execution or recursion; you decide what to do with tool calls.
 - Context is an array of chat messages (e.g., `ChatInput`, `ToolCall`, `ToolResult`).
 - Optional `functions` enables tool/function-calling.
 - Optional `responseFormat` enforces structured JSON responses.
 - Optional `model` lets you choose a predefined or custom model name.
 
-Minimal example using default model:
+Single-turn example using the default model:
 
 ```php
 use DvTeam\ChatGPT\MessageTypes\ChatInput;
@@ -72,6 +77,22 @@ $response = $chat->chat([
     new ChatInput('Summarize why typing helps in PHP 8.1.'),
 ]);
 echo $response->firstChoice()->result;
+```
+
+## Stateful helper: `GPTConversation`
+
+`GPTConversation` owns the conversation context, auto-inserts assistant replies, and executes callable tools locally, but **never** calls the API more than once per step. You decide when to continue.
+
+```php
+use DvTeam\ChatGPT\GPTConversation;
+use DvTeam\ChatGPT\MessageTypes\ChatInput;
+
+$conversation = new GPTConversation($chat, [new ChatInput('Explain traits in PHP.')]);
+$choice = $conversation->step(); // one API call
+
+// add a follow-up
+$conversation->addMessage(new ChatInput('Give one concise code example.'));
+$choice = $conversation->step(); // another single API call
 ```
 
 Choose a model explicitly:
@@ -193,6 +214,54 @@ foreach ($response->firstChoice()->tools as $tool) {
 // 2) Ask the model to continue with the new context
 $response = $chat->chat(context: $context, functions: $functions);
 echo $response->firstChoice()->result, "\n";
+```
+
+### Example: `test-tool-function-calling.php`
+
+Scripted two-round tool calling where the tool definitions are inferred from PHP attributes instead of manual schemas. The first round maps letters to numbers; the second maps those numbers to words, each validated with its own JSON schema. Run it with `php test-tool-function-calling.php`.
+
+```php
+use DvTeam\ChatGPT\Attributes\GPTCallableDescriptor;
+use DvTeam\ChatGPT\Attributes\GPTParameterDescriptor;
+use DvTeam\ChatGPT\Functions\CallableGPTFunction;
+use DvTeam\ChatGPT\Functions\GPTFunctions;
+use DvTeam\ChatGPT\GPTConversation;
+use DvTeam\ChatGPT\MessageTypes\ChatInput;
+use DvTeam\ChatGPT\ResponseFormat\JsonSchemaResponseFormat;
+
+// Step 1: let the model ask for tool calls
+$conversation = new GPTConversation(
+    $chat,
+    [new ChatInput('Find the Number for A and the Number for C.')],
+    new GPTFunctions(
+        new CallableGPTFunction(
+            #[GPTCallableDescriptor(name: 'get_number_by_letter', description: 'Returns a number for a single letter.')]
+            function (#[GPTParameterDescriptor(description: 'Letter to map.')] string $letter): ?int {
+                return match($letter) { 'A' => 1, 'B' => 2, 'C' => 3, default => null };
+            }
+        )
+    ),
+    responseFormat: new JsonSchemaResponseFormat([
+        'type' => 'object',
+        'properties' => ['numbers' => ['type' => 'array', 'items' => ['type' => 'integer']]],
+    ]),
+);
+
+$conversation->step(); // calls API once, runs callable tool locally, stores ToolResult
+
+// Step 2: ask for the words, reusing the same conversation and switching tools
+$conversation->setFunctions(new GPTFunctions(
+    new CallableGPTFunction(
+        #[GPTCallableDescriptor(name: 'get_word_by_number', description: 'Returns a word by a single number.')]
+        function (#[GPTParameterDescriptor(description: 'Number to map.')] int $number): ?string {
+            return match($number) { 1 => 'Sun', 2 => 'Moon', 3 => 'Earth', default => null };
+        }
+    )
+));
+$conversation->addMessage(new ChatInput('Get a word for each number using tool get_word_by_number.'));
+$final = $conversation->step();
+
+print_r($final->result->words);
 ```
 
 ## Web Search

@@ -6,8 +6,8 @@ namespace DvTeam\ChatGPT;
 
 use DvTeam\ChatGPT\Common\TestTools;
 use DvTeam\ChatGPT\Http\Psr18HttpClient;
+use DvTeam\ChatGPT\GPTConversation;
 use DvTeam\ChatGPT\MessageTypes\ChatInput;
-use DvTeam\ChatGPT\Response\ChatResponseChoice;
 use GuzzleHttp\Psr7\HttpFactory;
 use GuzzleHttp\Psr7\Response;
 use PHPUnit\Framework\TestCase;
@@ -59,20 +59,17 @@ class ChatGPTSimpleTextTest extends TestCase {
 			httpPostClient: $httpClient
 		);
 
-		$context = [new ChatInput('What is the capital of France?')];
+		$conversation = new GPTConversation($chat, [new ChatInput('What is the capital of France?')]);
 
-		$response = $chat->chat($context);
+		$firstChoice = $conversation->step();
 
-		$this->assertSame('The capital of France is Paris.', $response->firstChoice()->result);
+		$this->assertSame('The capital of France is Paris.', $firstChoice->result);
 
-		$context = $response->firstChoice()->enhancedContext;
+		$context = $conversation->getContext();
 
 		$this->assertCount(2, $context);
-
 		$this->assertInstanceOf(ChatInput::class, $context[0]);
-		$this->assertInstanceOf(ChatResponseChoice::class, $context[1]);
-
-		$context = $response->firstChoice()->enhancedContext;
+		$this->assertInstanceOf(\DvTeam\ChatGPT\MessageTypes\ChatOutput::class, $context[1]);
 
 		$responseBody = (object) [
 			'id' => 'resp_456',
@@ -102,20 +99,20 @@ class ChatGPTSimpleTextTest extends TestCase {
 			new Response(200, ['Content-Type' => 'application/json'], self::jsonEncode($responseBody))
 		);
 
-		$context[] = new ChatInput('How many inhabitants does this city have?');
+		$conversation->addMessage(new ChatInput('How many inhabitants does this city have?'));
 
-		$response2 = $chat->chat($context);
+		$secondChoice = $conversation->step();
 
-		$this->assertSame('Paris has approximately 2.1 to 2.2 million inhabitants.', $response2->firstChoice()->result);
+		$this->assertSame('Paris has approximately 2.1 to 2.2 million inhabitants.', $secondChoice->result);
 
-		$context = $response2->firstChoice()->enhancedContext;
+		$context = $conversation->getContext();
 
 		$this->assertCount(4, $context);
 
 		$this->assertInstanceOf(ChatInput::class, $context[0]);
-		$this->assertInstanceOf(ChatResponseChoice::class, $context[1]);
+		$this->assertInstanceOf(\DvTeam\ChatGPT\MessageTypes\ChatOutput::class, $context[1]);
 		$this->assertInstanceOf(ChatInput::class, $context[2]);
-		$this->assertInstanceOf(ChatResponseChoice::class, $context[3]);
+		$this->assertInstanceOf(\DvTeam\ChatGPT\MessageTypes\ChatOutput::class, $context[3]);
 
 		$timeline = $mockClient->getTimeline();
 		$this->assertCount(2, $timeline);

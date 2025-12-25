@@ -36,18 +36,18 @@ class GPTFunction implements JsonSerializable {
 	 * @return TFunction
 	 */
 	public function jsonSerialize(): array {
+		$parameters = [
+			'type' => 'object',
+			'properties' => $this->properties->jsonSerialize(),
+			'additionalProperties' => false,
+		];
+
 		$required = [];
 		foreach($this->properties->properties as $property) {
 			if($property->isRequired()) {
 				$required[] = $property->getName();
 			}
 		}
-
-		$parameters = [
-			'type' => 'object',
-			'properties' => $this->properties->jsonSerialize(),
-			'additionalProperties' => false,
-		];
 
 		if(count($required)) {
 			$parameters['required'] = $required;
