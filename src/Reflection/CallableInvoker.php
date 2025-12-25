@@ -5,7 +5,6 @@ namespace DvTeam\ChatGPT\Reflection;
 use ReflectionFunction;
 use ReflectionFunctionAbstract;
 use ReflectionMethod;
-use ReflectionParameter;
 use RuntimeException;
 
 class CallableInvoker {
@@ -29,7 +28,11 @@ class CallableInvoker {
 			}
 
 			if($parameter->isOptional()) {
-				$args[] = $parameter->getDefaultValue();
+				if($parameter->isDefaultValueAvailable()) {
+					$args[] = $parameter->getDefaultValue();
+				} else {
+					$args[] = null;
+				}
 				continue;
 			}
 

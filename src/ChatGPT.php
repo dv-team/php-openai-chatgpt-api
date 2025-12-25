@@ -10,18 +10,18 @@ use DvTeam\ChatGPT\Common\JsonSchemaValidator;
 use DvTeam\ChatGPT\Common\MessageInterceptorInterface;
 use DvTeam\ChatGPT\Exceptions\InvalidResponseException;
 use DvTeam\ChatGPT\Exceptions\NoResponseFromAPI;
-use DvTeam\ChatGPT\Functions\CallableGPTFunction;
 use DvTeam\ChatGPT\Functions\Function\GPTProperties;
 use DvTeam\ChatGPT\Functions\Function\Types\GPTObjectProperty;
 use DvTeam\ChatGPT\Functions\Function\Types\GPTStringProperty;
 use DvTeam\ChatGPT\Functions\GPTFunction;
 use DvTeam\ChatGPT\Functions\GPTFunctions;
-use DvTeam\ChatGPT\Reflection\CallableInvoker;
+use DvTeam\ChatGPT\MessageTypes\ChatOutput;
+use DvTeam\ChatGPT\PredefinedModels\LLMNanoNoReasoning;
+use DvTeam\ChatGPT\PredefinedModels\LLMSmallNoReasoning;
 use DvTeam\ChatGPT\Http\HttpPostInterface;
 use DvTeam\ChatGPT\Messages\ChatImageUrl;
 use DvTeam\ChatGPT\MessageTypes\ChatInput;
 use DvTeam\ChatGPT\MessageTypes\ToolCall;
-use DvTeam\ChatGPT\MessageTypes\ToolResult;
 use DvTeam\ChatGPT\PredefinedModels\LLMCustomModel;
 use DvTeam\ChatGPT\PredefinedModels\LLMMediumNoReasoning;
 use DvTeam\ChatGPT\PredefinedModels\LLMMediumReasoning;
@@ -33,9 +33,7 @@ use DvTeam\ChatGPT\Response\ChatResponse;
 use DvTeam\ChatGPT\Response\ChatResponseChoice;
 use DvTeam\ChatGPT\Response\WebSearchResponse;
 use DvTeam\ChatGPT\ResponseFormat\JsonSchemaResponseFormat;
-use GuzzleHttp\Exception\ClientException;
 use Opis\JsonSchema\Validator;
-use Psr\Http\Client\ClientExceptionInterface;
 use RuntimeException;
 
 /**
@@ -327,32 +325,13 @@ class ChatGPT {
 			throw new NoResponseFromAPI('Invalid or incomplete response from OpenAI.');
 		}
 
-		$enhancedContext = $context;
-
 		$choice = new ChatResponseChoice(
+			isToolCall: (bool) count($toolResults),
 			result: $message,
 			textResult: is_string($message) ? $message : null,
 			objResult: is_object($message) ? $message : null,
-			tools: $toolResults,
-			enhancedContext: []
+			tools: $toolResults
 		);
-
-		$enhancedContext[] = $choice;
-
-		if($functions !== null) {
-			foreach($toolResults as $tool) {
-				$callable = $functions->getCallable($tool->functionName);
-				if($callable === null) {
-					continue;
-				}
-
-				$result = CallableInvoker::invoke($callable, $tool->arguments);
-				/** @var array<string, mixed>|string|int|float|bool|null|object $result */
-				$enhancedContext[] = new ToolResult($tool->id, $result);
-			}
-		}
-
-		$choice->enhancedContext = $enhancedContext;
 
 		return new ChatResponse(
 			choices: [$choice],
@@ -474,7 +453,7 @@ class ChatGPT {
 	public function buildWebSearchFunction(
 		?array $defaultUserLocation = null,
 		?ChatModelName $defaultModel = null,
-	): CallableGPTFunction {
+	): GPTFunction {
 		$properties = new GPTProperties(
 			new GPTStringProperty(
 				name: 'query',
@@ -491,59 +470,20 @@ class ChatGPT {
 					new GPTStringProperty('country', 'Country code (ISO 3166-1 alpha-2)'),
 					new GPTStringProperty('timezone', 'IANA timezone')
 				),
-				required: $defaultUserLocation === null
+				required: $defaultUserLocation === null,
 			),
 			new GPTStringProperty(
 				name: 'model',
-				description: 'Optional model name for web search (if omitted, server defaults apply). Agents must not request reasoning models.',
-				required: $defaultModel === null
+				description: 'Optional model name for web search (if omitted, server defaults apply). `standard` translates to the largest model available (like `gpt-5.1`). `small` translates to something like `gpt-5.1-small`. `nano` translates to something like `gpt-5.1-nano`',
+				enum: ['standard', 'mini', 'nano'],
+				required: $defaultModel === null,
 			),
 		);
 
-		return new CallableGPTFunction(
+		return new GPTFunction(
 			name: 'web_search',
-			description: 'Perform an OpenAI web search and return the first text result (plus metadata).',
-			properties: $properties,
-			callable: function(object $args) use ($defaultUserLocation, $defaultModel): array {
-				$query = $args->query ?? '';
-
-				/** @var TUserLocation|null $userLocation */
-				$userLocation = $defaultUserLocation ?? (isset($args->user_location) && is_object($args->user_location)
-					? (array) $args->user_location
-					: null);
-
-				$modelName = $defaultModel ?? (isset($args->model) && is_string($args->model) && $args->model !== ''
-					? new LLMCustomModel($args->model)
-					: null);
-
-				if($modelName === null) {
-					throw new InvalidResponseException('web_search requires a non-reasoning model name when no default is provided.');
-				}
-
-				// Agents must not request reasoning models explicitly; defaults may include reasoning.
-				if($defaultModel === null && ($this->getReasoningEffort($modelName) !== null || str_contains(strtolower((string) $modelName), 'reasoning'))) {
-					throw new InvalidResponseException('Reasoning models cannot be requested explicitly for web_search.');
-				}
-
-				if($userLocation === null) {
-					throw new InvalidResponseException('web_search requires user_location when no default is provided.');
-				}
-
-				$response = $this->webSearch(
-					query: (string) $query,
-					userLocation: $userLocation,
-					model: $modelName // enforce non-reasoning; getReasoningEffort guards it
-				);
-
-				return [
-					'text' => $response->getFirstText(),
-					'query' => $response->query,
-					'model' => $response->model,
-					'effort' => null,
-					'user_location' => $response->userLocation,
-					'response_id' => $response->id,
-				];
-			}
+			description: 'Search the web for information.',
+			properties: $properties
 		);
 	}
 

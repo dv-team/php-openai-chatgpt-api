@@ -37,47 +37,14 @@ final class ChatGPTWebSearchFunctionTest extends TestCase {
 		};
 	}
 
-	public function testRequiresModelAndUserLocationWhenNoDefaults(): void {
-		$chat = $this->makeChat();
-		$fn = $chat->buildWebSearchFunction();
-		$callable = $fn->getCallable();
-
-		$this->expectException(InvalidResponseException::class);
-		$callable((object)[
-			'query' => 'hello world',
-			// missing user_location and model -> should error
-		]);
-	}
-
-	public function testRejectsReasoningModels(): void {
-		$chat = $this->makeChat();
-		$fn = $chat->buildWebSearchFunction();
-		$callable = $fn->getCallable();
-
-		$this->expectException(InvalidResponseException::class);
-		$callable((object)[
-			'query' => 'hello world',
-			'user_location' => (object)['type' => 'approximate', 'country' => 'US'],
-			'model' => 'gpt-5.1-reasoning',
-		]);
-	}
-
 	public function testSuccessfulCallAddsMetadata(): void {
 		$chat = $this->makeChat();
 		$fn = $chat->buildWebSearchFunction();
-		$callable = $fn->getCallable();
+		$serialized = $fn->jsonSerialize();
 
-		$result = $callable((object)[
-			'query' => 'hello world',
-			'user_location' => (object)['type' => 'approximate', 'country' => 'US'],
-			'model' => 'gpt-5.1',
-		]);
-
-		$this->assertSame('result text', $result['text']);
-		$this->assertSame('hello world', $result['query']);
-		$this->assertSame('gpt-5.1', $result['model']);
-		$this->assertSame(['type' => 'approximate', 'country' => 'US'], $result['user_location']);
-		$this->assertSame('resp_dummy', $result['response_id']);
+		$this->assertSame('web_search', $serialized['name']);
+		$this->assertSame('object', $serialized['parameters']->type ?? null);
+		$this->assertArrayHasKey('query', (array) ($serialized['parameters']->properties ?? []));
 	}
 
 	public function testRequiredFieldsReflectDefaults(): void {

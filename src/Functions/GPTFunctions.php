@@ -2,7 +2,6 @@
 
 namespace DvTeam\ChatGPT\Functions;
 
-use DvTeam\ChatGPT\Functions\CallableGPTFunction;
 use IteratorAggregate;
 use JsonSerializable;
 use Traversable;
@@ -15,19 +14,11 @@ use Traversable;
 class GPTFunctions implements JsonSerializable, IteratorAggregate {
 	/** @var GPTFunction[] */
 	public readonly array $functions;
-	/** @var array<string, callable> */
-	private array $callableMap = [];
 
 	public function __construct(
 		GPTFunction ...$functions
 	) {
 		$this->functions = $functions;
-
-		foreach($functions as $function) {
-			if($function instanceof CallableGPTFunction) {
-				$this->callableMap[$function->name] = $function->getCallable();
-			}
-		}
 	}
 
 	/**
@@ -47,9 +38,5 @@ class GPTFunctions implements JsonSerializable, IteratorAggregate {
 		}
 
 		return $functions;
-	}
-
-	public function getCallable(string $name): ?callable {
-		return $this->callableMap[$name] ?? null;
 	}
 }

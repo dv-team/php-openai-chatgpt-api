@@ -2,13 +2,13 @@
 
 namespace DvTeam\ChatGPT\Common;
 
-use DvTeam\ChatGPT\Attributes\GPTMethod;
-use DvTeam\ChatGPT\Attributes\GPTParameter;
+use DvTeam\ChatGPT\Attributes\GPTCallableDescriptor;
+use DvTeam\ChatGPT\Attributes\GPTParameterDescriptor;
 
 class CallableTools {
-	#[GPTMethod('Pick a word by index.')]
+	#[GPTCallableDescriptor(name: null, description: 'Pick a word by index.')]
 	public static function pickWord(
-		#[GPTParameter('The numeric index of the word to return.')]
+		#[GPTParameterDescriptor(['description' => 'The index of the word to pick.'])]
 		int $index,
 	): string {
 		$words = ['apple', 'banana', 'cherry'];
