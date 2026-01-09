@@ -5,9 +5,8 @@ declare(strict_types=1);
 namespace DvTeam\ChatGPT;
 
 use DvTeam\ChatGPT\Common\ChatModelName;
-use DvTeam\ChatGPT\Exceptions\InvalidResponseException;
 use DvTeam\ChatGPT\Http\HttpPostInterface;
-use DvTeam\ChatGPT\OpenAIToken;
+use DvTeam\ChatGPT\Http\HttpResponse;
 use DvTeam\ChatGPT\PredefinedModels\LLMCustomModel;
 use DvTeam\ChatGPT\Response\WebSearchResponse;
 use PHPUnit\Framework\TestCase;
@@ -17,8 +16,8 @@ final class ChatGPTWebSearchFunctionTest extends TestCase {
 		return new class extends ChatGPT {
 			public function __construct() {
 				parent::__construct(new OpenAIToken('test'), new class implements HttpPostInterface {
-					public function post(string $url, array $data, array $headers, bool $disableTimeout = false): string {
-						return '';
+					public function post(string $url, array $data, array $headers): HttpResponse {
+						return new HttpResponse(statusCode: 200, headers: [], body: '');
 					}
 				});
 			}

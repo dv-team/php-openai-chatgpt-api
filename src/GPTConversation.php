@@ -44,21 +44,21 @@ use ReflectionFunctionAbstract;
  */
 class GPTConversation {
 	/**
- * @param ChatMessage[] $context
- * @param callable[] $callableTools
- * @param array<string, callable> $callableMap
- */
-public function __construct(
-	private readonly ChatGPT $chat,
-	private array $context = [],
-	private array $callableTools = [],
-	private array $callableMap = [],
-	private ?GPTFunctions $functionsSpec = null,
+	 * @param ChatMessage[] $context
+	 * @param callable[] $callableTools
+	 * @param array<string, callable> $callableMap
+	 */
+	public function __construct(
+		private readonly ChatGPT $chat,
+		private array $context = [],
+		private array $callableTools = [],
+		private array $callableMap = [],
+		private ?GPTFunctions $functionsSpec = null,
 		private ?JsonSchemaResponseFormat $responseFormat = null,
-		private ?ChatModelName $model = null,
-		private int $maxTokens = 2500,
-		private ?float $temperature = null,
-		private ?float $topP = null,
+		public ?ChatModelName $model = null,
+		public int $maxTokens = 2500,
+		public ?float $temperature = null,
+		public ?float $topP = null,
 	) {
 		$this->setTools($callableTools);
 	}
@@ -71,8 +71,10 @@ public function __construct(
 	 * - Auto-executes callable tools locally and appends ToolResult, but does NOT
 	 *   call the API again. Caller must invoke step() again to continue.
 	 */
-	public function step(): ChatResponseChoice {
+	public function step(bool $rerunOnToolUse = true): ChatResponseChoice {
 		$this->rebuildFunctionsSpec();
+
+		retry:
 
 		$response = $this->chat->chat(
 			context: $this->context,
@@ -84,7 +86,30 @@ public function __construct(
 			topP: $this->topP,
 		);
 
-		return $this->absorbResponse($response);
+		$response = $this->absorbResponse($response);
+
+		if($response->isToolCall && $rerunOnToolUse) {
+			goto retry;
+		}
+
+		return $response;
+	}
+
+	/**
+	 * Returns a copy of the current conversation.
+	 */
+	public function split(): GPTConversation {
+		return new self(
+			chat: $this->chat,
+			context: $this->context,
+			callableTools: $this->callableTools,
+			callableMap: $this->callableMap,
+			functionsSpec: $this->functionsSpec,
+			responseFormat: $this->responseFormat,
+			model: $this->model,
+			maxTokens: $this->maxTokens,
+			temperature: $this->temperature,
+		);
 	}
 
 	/**
