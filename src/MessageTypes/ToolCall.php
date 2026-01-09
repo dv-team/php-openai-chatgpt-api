@@ -24,11 +24,6 @@ class ToolCall implements ChatMessage {
 		public string $role = 'assistant',
 	) {}
 
-	public function addToContext(array $context): array {
-		$context[] = $this;
-		return $context;
-	}
-
 	/**
 	 * Maps an assistant tool-call message to the Responses API input schema.
 	 *

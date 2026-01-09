@@ -46,11 +46,6 @@ class WebSearchResult implements ChatMessage {
 		return new self($toolCallId, $content);
 	}
 
-	public function addToContext(array $context): array {
-		$context[] = $this;
-		return $context;
-	}
-
 	/**
 	 * @return list<array{type: 'tool_result', tool_id: string, content: mixed}>
 	 */
@@ -62,4 +57,3 @@ class WebSearchResult implements ChatMessage {
 		]];
 	}
 }
-

@@ -4,8 +4,6 @@ namespace DvTeam\ChatGPT\MessageTypes;
 
 use DvTeam\ChatGPT\Common\ChatMessage;
 use DvTeam\ChatGPT\Messages\ChatAttachment;
-use DvTeam\ChatGPT\Messages\ChatImageUrl;
-use RuntimeException;
 
 class ChatInput implements ChatMessage {
 	public static function mk(string $content, string $role = 'user', ?ChatAttachment $attachment = null): ChatInput {
@@ -18,11 +16,6 @@ class ChatInput implements ChatMessage {
 		public ?ChatAttachment $attachment = null,
 	) {}
 
-	public function addToContext(array $context): array {
-		$context[] = $this;
-		return $context;
-	}
-
 	/**
 	 * Maps the structure of this ChatInput (optionally with an image) to the Responses API input schema.
 	 *
@@ -30,19 +23,14 @@ class ChatInput implements ChatMessage {
 	 */
 	public function jsonSerialize(): array {
 		$content = [[
-			'type' => 'input_text',
+			'type' => 'input_text', #$this->role === 'assistant' ? 'output_text' : 'input_text',
 			'text' => $this->content,
 		]];
 
-		if($this->attachment instanceof ChatImageUrl) {
-			$content[] = [
-				'type' => 'input_image',
-				'image_url' => [
-					'url' => $this->attachment->url,
-				],
-			];
-		} elseif($this->attachment !== null) {
-			throw new RuntimeException('Invalid parameter');
+		if($this->attachment !== null) {
+			/** @var list<array{type: 'input_image', image_url: array{url: string}}>|list<array<string, mixed>> $parts */
+			$parts = $this->attachment->toInputContentParts();
+			$content = array_merge($content, $parts);
 		}
 
 		return [[

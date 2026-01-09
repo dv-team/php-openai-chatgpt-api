@@ -20,11 +20,6 @@ class ToolResult implements ChatMessage {
 		public string $role = 'tool',
 	) {}
 
-	public function addToContext(array $context): array {
-		$context[] = $this;
-		return $context;
-	}
-
 	/**
 	 * Maps a tool-result message to the Responses API input schema.
 	 *

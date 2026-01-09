@@ -14,11 +14,6 @@ class ChatOutput implements ChatMessage {
 		public readonly array $tools
 	) {}
 
-	public function addToContext(array $context): array {
-		$context[] = $this;
-		return $context;
-	}
-
 	public function jsonSerialize(): array {
 		$content = [];
 		$data = $this->result;
