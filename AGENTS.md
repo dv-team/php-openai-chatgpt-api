@@ -66,16 +66,19 @@ $res = $chat->chat(
 Tool calling with multiple rounds
 
 ```php
+$context = [new ChatInput('Find the Number for A and the Number for C.')];
+
 $getNumber = new GPTFunctions(new GPTFunction(
     name: 'get_number_by_letter',
     description: 'Returns a number for a single letter.',
     properties: new GPTProperties(new GPTStringProperty('letter', 'Letter to map', required: true))
 ));
-$conversation = new GPTConversation($chat, [new ChatInput('Find the Number for A und and the Number for C.')], $getNumber);
-$step1 = $conversation->step(); // one API call
+
+$step1 = $chat->chat(context: $context, functions: $getNumber)->firstChoice(); // one API call
 foreach ($step1->tools as $tool) {
+    $context[] = $tool->toolCallMessage;
     $args = $tool->arguments;
-    $conversation->addMessage(new ToolResult($tool->id, match($args->letter) { 'A' => 1, 'B' => 2, 'C' => 3, default => null }));
+    $context[] = new ToolResult($tool->id, match($args->letter) { 'A' => 1, 'B' => 2, 'C' => 3, default => null });
 }
 
 $getWord = new GPTFunctions(new GPTFunction(
@@ -83,19 +86,19 @@ $getWord = new GPTFunctions(new GPTFunction(
     description: 'Returns a word for a single number.',
     properties: new GPTProperties(new GPTNumberProperty('number', 'The number.', required: true))
 ));
-$conversation->setFunctions($getWord);
-$conversation->addMessage(new ChatInput('Get the word for the numbers using tool get_a_word_by_number.'));
-$step2 = $conversation->step();
+$context[] = new ChatInput('Get the word for the numbers using tool get_a_word_by_number.');
+$step2 = $chat->chat(context: $context, functions: $getWord)->firstChoice();
 foreach ($step2->tools as $tool) {
+    $context[] = $tool->toolCallMessage;
     $n = $tool->arguments->number;
-    $conversation->addMessage(new ToolResult($tool->id, match($n) { 1 => 'Sun', 2 => 'Moon', 3 => 'Earth' }));
+    $context[] = new ToolResult($tool->id, match($n) { 1 => 'Sun', 2 => 'Moon', 3 => 'Earth' });
 }
-$conversation->addMessage(new ChatInput('What are the two words?'));
-$conversation->setResponseFormat(new JsonSchemaResponseFormat([
+$context[] = new ChatInput('What are the two words?');
+$responseFormat = new JsonSchemaResponseFormat([
     'type' => 'object',
     'properties' => ['first_word' => ['type' => 'string'], 'second_word' => ['type' => 'string']],
-]));
-$final = $conversation->step();
+]);
+$final = $chat->chat(context: $context, functions: $getWord, responseFormat: $responseFormat)->firstChoice();
 echo JSON::stringify($final->result);
 ```
 
@@ -147,8 +150,6 @@ Example: `test-tool-function-calling.php`
 ```php
 use DvTeam\ChatGPT\Attributes\GPTCallableDescriptor;
 use DvTeam\ChatGPT\Attributes\GPTParameterDescriptor;
-use DvTeam\ChatGPT\Functions\CallableGPTFunction;
-use DvTeam\ChatGPT\Functions\GPTFunctions;
 use DvTeam\ChatGPT\GPTConversation;
 use DvTeam\ChatGPT\MessageTypes\ChatInput;
 use DvTeam\ChatGPT\ResponseFormat\JsonSchemaResponseFormat;
@@ -156,14 +157,12 @@ use DvTeam\ChatGPT\ResponseFormat\JsonSchemaResponseFormat;
 $conversation = new GPTConversation(
     $chat,
     [new ChatInput('Find the Number for A and the Number for C.')],
-    new GPTFunctions(
-        new CallableGPTFunction(
-            #[GPTCallableDescriptor(name: 'get_number_by_letter', description: 'Returns a number for a single letter.')]
-            function (#[GPTParameterDescriptor(description: 'Letter to map.')] string $letter): ?int {
-                return match($letter) { 'A' => 1, 'B' => 2, 'C' => 3, default => null };
-            }
-        )
-    ),
+    callableTools: [
+        #[GPTCallableDescriptor(name: 'get_number_by_letter', description: 'Returns a number for a single letter.')]
+        function (#[GPTParameterDescriptor(['description' => 'Letter to map.'])] string $letter): ?int {
+            return match($letter) { 'A' => 1, 'B' => 2, 'C' => 3, default => null };
+        }
+    ],
     responseFormat: new JsonSchemaResponseFormat([
         'type' => 'object',
         'properties' => ['numbers' => ['type' => 'array', 'items' => ['type' => 'integer']]],
@@ -172,14 +171,12 @@ $conversation = new GPTConversation(
 
 $conversation->step(); // one API call, tool executed locally
 
-$conversation->setFunctions(new GPTFunctions(
-    new CallableGPTFunction(
-        #[GPTCallableDescriptor(name: 'get_word_by_number', description: 'Returns a word by a single number.')]
-        function (#[GPTParameterDescriptor(description: 'Number to map.')] int $number): ?string {
-            return match($number) { 1 => 'Sun', 2 => 'Moon', 3 => 'Earth', default => null };
-        }
-    )
-));
+$conversation->setTools([
+    #[GPTCallableDescriptor(name: 'get_word_by_number', description: 'Returns a word by a single number.')]
+    function (#[GPTParameterDescriptor(['description' => 'Number to map.'])] int $number): ?string {
+        return match($number) { 1 => 'Sun', 2 => 'Moon', 3 => 'Earth', default => null };
+    }
+]);
 $conversation->addMessage(new ChatInput('Get a word for each number using tool get_word_by_number.'));
 $conversation->setResponseFormat(new JsonSchemaResponseFormat([
     'type' => 'object',

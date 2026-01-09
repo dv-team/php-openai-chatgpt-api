@@ -177,7 +177,6 @@ use DvTeam\ChatGPT\Functions\Function\GPTProperties;
 use DvTeam\ChatGPT\Functions\Function\Types\GPTNumberProperty;
 use DvTeam\ChatGPT\Functions\Function\Types\GPTStringProperty;
 use DvTeam\ChatGPT\Functions\GPTFunction;
-use DvTeam\ChatGPT\Functions\GPTFunctions;
 use DvTeam\ChatGPT\MessageTypes\ChatInput;
 use DvTeam\ChatGPT\MessageTypes\ToolResult;
 use DvTeam\ChatGPT\ResponseFormat\JsonSchemaResponseFormat;
@@ -223,8 +222,6 @@ Scripted two-round tool calling where the tool definitions are inferred from PHP
 ```php
 use DvTeam\ChatGPT\Attributes\GPTCallableDescriptor;
 use DvTeam\ChatGPT\Attributes\GPTParameterDescriptor;
-use DvTeam\ChatGPT\Functions\CallableGPTFunction;
-use DvTeam\ChatGPT\Functions\GPTFunctions;
 use DvTeam\ChatGPT\GPTConversation;
 use DvTeam\ChatGPT\MessageTypes\ChatInput;
 use DvTeam\ChatGPT\ResponseFormat\JsonSchemaResponseFormat;
@@ -233,14 +230,12 @@ use DvTeam\ChatGPT\ResponseFormat\JsonSchemaResponseFormat;
 $conversation = new GPTConversation(
     $chat,
     [new ChatInput('Find the Number for A and the Number for C.')],
-    new GPTFunctions(
-        new CallableGPTFunction(
-            #[GPTCallableDescriptor(name: 'get_number_by_letter', description: 'Returns a number for a single letter.')]
-            function (#[GPTParameterDescriptor(description: 'Letter to map.')] string $letter): ?int {
-                return match($letter) { 'A' => 1, 'B' => 2, 'C' => 3, default => null };
-            }
-        )
-    ),
+    callableTools: [
+        #[GPTCallableDescriptor(name: 'get_number_by_letter', description: 'Returns a number for a single letter.')]
+        function (#[GPTParameterDescriptor(['description' => 'Letter to map.'])] string $letter): ?int {
+            return match($letter) { 'A' => 1, 'B' => 2, 'C' => 3, default => null };
+        }
+    ],
     responseFormat: new JsonSchemaResponseFormat([
         'type' => 'object',
         'properties' => ['numbers' => ['type' => 'array', 'items' => ['type' => 'integer']]],
@@ -250,14 +245,12 @@ $conversation = new GPTConversation(
 $conversation->step(); // calls API once, runs callable tool locally, stores ToolResult
 
 // Step 2: ask for the words, reusing the same conversation and switching tools
-$conversation->setFunctions(new GPTFunctions(
-    new CallableGPTFunction(
-        #[GPTCallableDescriptor(name: 'get_word_by_number', description: 'Returns a word by a single number.')]
-        function (#[GPTParameterDescriptor(description: 'Number to map.')] int $number): ?string {
-            return match($number) { 1 => 'Sun', 2 => 'Moon', 3 => 'Earth', default => null };
-        }
-    )
-));
+$conversation->setTools([
+    #[GPTCallableDescriptor(name: 'get_word_by_number', description: 'Returns a word by a single number.')]
+    function (#[GPTParameterDescriptor(['description' => 'Number to map.'])] int $number): ?string {
+        return match($number) { 1 => 'Sun', 2 => 'Moon', 3 => 'Earth', default => null };
+    }
+]);
 $conversation->addMessage(new ChatInput('Get a word for each number using tool get_word_by_number.'));
 $final = $conversation->step();
 
@@ -429,6 +422,7 @@ file_put_contents('/tmp/example.wav', $audio);
 - The library converts image inputs into the Chat Completions message format automatically.
 - When a JSON schema is supplied, responses are validated using `opis/json-schema`. Invalid responses throw an exception. 
   - You can bring your own JSON schema validator by implementing `JsonSchemaValidatorInterface`.
+- If you implement a custom HTTP adapter, implement `HttpPostInterface` and return an `HttpResponse` (status code + headers + body).
 - `ChatResponse::firstChoice()` is a convenience for the first returned choice.
 
 ## Reasoning models and effort
