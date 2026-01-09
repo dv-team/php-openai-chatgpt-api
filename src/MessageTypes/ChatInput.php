@@ -37,9 +37,7 @@ class ChatInput implements ChatMessage {
 		if($this->attachment instanceof ChatImageUrl) {
 			$content[] = [
 				'type' => 'input_image',
-				'image_url' => [
-					'url' => $this->attachment->url,
-				],
+				'image_url' => $this->attachment->url,
 			];
 		} elseif($this->attachment !== null) {
 			throw new RuntimeException('Invalid parameter');
