@@ -8,12 +8,17 @@ use DvTeam\ChatGPT\MessageTypes\ToolCall;
 use JsonSerializable;
 
 /**
+ * @template T of object
+ *
  * @phpstan-type TextOutput array{role: 'assistant', content: list<array{type: 'output_text', text: string}>}
  * @phpstan-type FunctionOutput array{type: 'function_call', call_id: string, name: string, arguments: string}
  */
 class ChatResponseChoice implements JsonSerializable {
 	/**
+	 * @param null|string|T $result
 	 * @param object{toolCallMessage: ToolCall}[] $tools
+	 * @param null|string $textResult
+	 * @param null|T $objResult
 	 */
 	public function __construct(
 		public readonly bool $isToolCall,
