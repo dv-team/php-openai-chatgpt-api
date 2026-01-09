@@ -6,12 +6,6 @@ use JsonSerializable;
 
 interface ChatMessage extends JsonSerializable {
 	/**
-	 * @param ChatMessage[] $context The context to enhance
-	 * @return ChatMessage[] The enhanced context
-	 */
-	public function addToContext(array $context): array;
-
-	/**
 	 * @return list<array<string, mixed>>
 	 */
 	public function jsonSerialize(): array;

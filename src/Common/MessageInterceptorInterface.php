@@ -5,8 +5,8 @@ namespace DvTeam\ChatGPT\Common;
 interface MessageInterceptorInterface {
 	/**
 	 * @param ChatEnquiry $enquiry
-	 * @param callable(ChatEnquiry $enquiry): string $fn
+	 * @param callable(ChatEnquiry): string $next
 	 * @return string
 	 */
-	public function invoke(ChatEnquiry $enquiry, $fn): string;
+	public function invoke(ChatEnquiry $enquiry, callable $next): string;
 }
