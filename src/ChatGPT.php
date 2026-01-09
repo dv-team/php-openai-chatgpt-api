@@ -6,7 +6,7 @@ use DvTeam\ChatGPT\Common\ChatEnquiry;
 use DvTeam\ChatGPT\Common\ChatMessage;
 use DvTeam\ChatGPT\Common\ChatModelName;
 use DvTeam\ChatGPT\Common\JSON;
-use DvTeam\ChatGPT\Common\JsonSchemaValidator;
+use DvTeam\ChatGPT\Common\JsonSchemaValidatorInterface;
 use DvTeam\ChatGPT\Common\MessageInterceptorInterface;
 use DvTeam\ChatGPT\Exceptions\InvalidResponseException;
 use DvTeam\ChatGPT\Exceptions\NoResponseFromAPI;
@@ -15,12 +15,8 @@ use DvTeam\ChatGPT\Functions\Function\Types\GPTObjectProperty;
 use DvTeam\ChatGPT\Functions\Function\Types\GPTStringProperty;
 use DvTeam\ChatGPT\Functions\GPTFunction;
 use DvTeam\ChatGPT\Functions\GPTFunctions;
-use DvTeam\ChatGPT\MessageTypes\ChatOutput;
-use DvTeam\ChatGPT\PredefinedModels\LLMNanoNoReasoning;
-use DvTeam\ChatGPT\PredefinedModels\LLMSmallNoReasoning;
+use DvTeam\ChatGPT\Http\LLMNetworkException;
 use DvTeam\ChatGPT\Http\HttpPostInterface;
-use DvTeam\ChatGPT\Messages\ChatImageUrl;
-use DvTeam\ChatGPT\MessageTypes\ChatInput;
 use DvTeam\ChatGPT\MessageTypes\ToolCall;
 use DvTeam\ChatGPT\PredefinedModels\LLMCustomModel;
 use DvTeam\ChatGPT\PredefinedModels\LLMMediumNoReasoning;
@@ -193,28 +189,61 @@ use RuntimeException;
  * }
  */
 class ChatGPT {
-	private JsonSchemaValidator $jsonSchemaValidator;
+	private JsonSchemaValidatorInterface $jsonSchemaValidator;
 	private MessageInterceptorInterface $messageInterceptor;
 
 	public function __construct(
 		private readonly OpenAIToken $token,
 		private readonly HttpPostInterface $httpPostClient,
-		?JsonSchemaValidator $jsonSchemaValidator = null,
+		?JsonSchemaValidatorInterface $jsonSchemaValidator = null,
 		?MessageInterceptorInterface $messageInterceptor = null,
 	) {
 		$this->messageInterceptor = $messageInterceptor ?? new class implements MessageInterceptorInterface {
-			public function invoke(ChatEnquiry $enquiry, $fn): string {
-				return $fn($enquiry);
+			public function invoke(ChatEnquiry $enquiry, callable $next): string {
+				return $next($enquiry);
 			}
 		};
 
-		$this->jsonSchemaValidator = $jsonSchemaValidator ?? new class implements JsonSchemaValidator {
+		$this->jsonSchemaValidator = $jsonSchemaValidator ?? new class implements JsonSchemaValidatorInterface {
 			public function validate(mixed $data, array $schema): bool {
 				$validator = new Validator();
 
-				return ($validator)->validate($data, JSON::stringify($schema))->isValid();
+				try {
+					return ($validator)->validate($data, JSON::stringify($schema))->isValid();
+				} catch (\Throwable) {
+					return false;
+				}
 			}
 		};
+	}
+
+	/**
+	 * @param ChatMessage[] $context
+	 * @param callable[] $callableTools
+	 * @param array<string, callable> $callableMap
+	 */
+	public function newConversation(
+		array $context = [],
+		array $callableTools = [],
+		array $callableMap = [],
+		?JsonSchemaResponseFormat $responseFormat = null,
+		?ChatModelName $model = null,
+		int $maxTokens = 2500,
+		?float $temperature = null,
+		?float $topP = null,
+	): GPTConversation {
+		return new GPTConversation(
+			chat: $this,
+			context: $context,
+			callableTools: $callableTools,
+			callableMap: $callableMap,
+			functionsSpec: null,
+			responseFormat: $responseFormat,
+			model: $model,
+			maxTokens: $maxTokens,
+			temperature: $temperature,
+			topP: $topP,
+		);
 	}
 
 	/**
@@ -370,7 +399,7 @@ class ChatGPT {
 		$responseJson = $this->httpPostClient->post('https://api.openai.com/v1/responses', $body, [
 			'Authorization' => "Bearer {$this->token}",
 			'Content-Type' => 'application/json',
-		]);
+		])->body;
 
 		/** @var object{id: string, output: object{type: string, status: string}[]} $response */
 		$response = JSON::parse($responseJson);
@@ -431,7 +460,7 @@ class ChatGPT {
 				'Content-Type' => 'application/json',
 				'Accept' => "audio/{$format}",
 			]
-		);
+		)->body;
 
 		/** @var array{error?: array{message?: string}}|null $decoded */
 		$decoded = json_decode($response, true);
@@ -544,7 +573,11 @@ class ChatGPT {
 				$body['tool_choice'] = 'auto';
 			}
 
-			return $this->httpPostClient->post($uri, $body, $headers);
+			try {
+				return $this->httpPostClient->post($uri, $body, $headers)->body;
+			} catch(LLMNetworkException $e) {
+				throw $e;
+			}
 		});
 	}
 
