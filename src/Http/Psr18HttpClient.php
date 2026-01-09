@@ -32,7 +32,7 @@ class Psr18HttpClient implements HttpPostInterface {
 		private readonly array $defaultHeaders = ['accept' => 'application/json; charset=utf-8'],
 	) {}
 
-	public function post(string $url, array $data, array $headers): string {
+	public function post(string $url, array $data, array $headers): HttpResponse {
 		$mergedHeaders = array_merge($this->defaultHeaders, $headers);
 
 		if(!isset($mergedHeaders['Content-Type']) && !isset($mergedHeaders['content-type'])) {
@@ -69,6 +69,10 @@ class Psr18HttpClient implements HttpPostInterface {
 			throw new LLMNetworkException(contents: $content, headers: $responseHeaders, statusCode: $statusCode);
 		}
 
-		return $content;
+		return new HttpResponse(
+			statusCode: $statusCode,
+			headers: $responseHeaders,
+			body: $content,
+		);
 	}
 }
