@@ -20,11 +20,6 @@ class ChatFuncCallResult implements ChatMessage {
 		public readonly ToolCall $toolCallMessage,
 	) {}
 
-	public function addToContext(array $context): array {
-		$context[] = $this;
-		return $context;
-	}
-
 	/**
 	 * @return list<array{type: 'function_call_output', call_id: string, output: string}>
 	 */
