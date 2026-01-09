@@ -20,10 +20,14 @@ class GuzzleHttpClient implements HttpPostInterface {
 
 	public function __construct(private readonly Client $client) {}
 
-	public function post(string $url, array $data, array $headers): string {
+	public function post(string $url, array $data, array $headers): HttpResponse {
 		try {
 			$response = $this->client->post($url, ['json' => $data, 'headers' => $headers]);
-			return $response->getBody()->getContents();
+			return new HttpResponse(
+				statusCode: $response->getStatusCode(),
+				headers: $response->getHeaders(),
+				body: $response->getBody()->getContents(),
+			);
 		} catch (ClientException $e) {
 			$content = $e->getResponse()->getBody()->getContents();
 			$headers = $e->getResponse()->getHeaders();
