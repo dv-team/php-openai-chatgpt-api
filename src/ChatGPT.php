@@ -15,8 +15,8 @@ use DvTeam\ChatGPT\Functions\Function\Types\GPTObjectProperty;
 use DvTeam\ChatGPT\Functions\Function\Types\GPTStringProperty;
 use DvTeam\ChatGPT\Functions\GPTFunction;
 use DvTeam\ChatGPT\Functions\GPTFunctions;
-use DvTeam\ChatGPT\Http\LLMNetworkException;
 use DvTeam\ChatGPT\Http\HttpPostInterface;
+use DvTeam\ChatGPT\Http\LLMNetworkException;
 use DvTeam\ChatGPT\MessageTypes\ToolCall;
 use DvTeam\ChatGPT\PredefinedModels\LLMCustomModel;
 use DvTeam\ChatGPT\PredefinedModels\LLMMediumNoReasoning;
@@ -253,7 +253,7 @@ class ChatGPT {
 	 * @param ChatModelName|null $model
 	 * @param int $maxTokens
 	 * @param null|float $temperature The temperature as described in the [here](https://community.openai.com/t/cheat-sheet-mastering-temperature-and-top-p-in-chatgpt-api/172683).
-	 * @return ChatResponse
+	 * @return ChatResponse<object>
 	 */
 	public function chat(
 		array $context,
