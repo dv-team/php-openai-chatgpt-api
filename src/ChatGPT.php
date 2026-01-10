@@ -22,7 +22,7 @@ use DvTeam\ChatGPT\PredefinedModels\LLMCustomModel;
 use DvTeam\ChatGPT\PredefinedModels\LLMMediumNoReasoning;
 use DvTeam\ChatGPT\PredefinedModels\LLMMediumReasoning;
 use DvTeam\ChatGPT\PredefinedModels\LLMSmallReasoning;
-use DvTeam\ChatGPT\PredefinedModels\TextToSpeech\GPT4oMiniTextToSpeech;
+use DvTeam\ChatGPT\PredefinedModels\TextToSpeech\GPTMiniTextToSpeech;
 use DvTeam\ChatGPT\PredefinedModels\TextToSpeech\TextToSpeechModel;
 use DvTeam\ChatGPT\Response\ChatFuncCallResult;
 use DvTeam\ChatGPT\Response\ChatResponse;
@@ -438,7 +438,7 @@ class ChatGPT {
 		TextToSpeechModel|null $model = null,
 		string $format = 'wav',
 	): string {
-		$model ??= new GPT4oMiniTextToSpeech();
+		$model ??= new GPTMiniTextToSpeech();
 
 		$body = [
 			'model' => (string) $model,
