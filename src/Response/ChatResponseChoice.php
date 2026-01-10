@@ -2,8 +2,6 @@
 
 namespace DvTeam\ChatGPT\Response;
 
-use DvTeam\ChatGPT\Common\ChatMessage;
-use DvTeam\ChatGPT\Common\JSON;
 use DvTeam\ChatGPT\MessageTypes\ToolCall;
 use JsonSerializable;
 
