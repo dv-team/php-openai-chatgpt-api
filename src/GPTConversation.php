@@ -6,28 +6,28 @@ use DvTeam\ChatGPT\Common\ChatMessage;
 use DvTeam\ChatGPT\Common\ChatModelName;
 use DvTeam\ChatGPT\Common\JSON;
 use DvTeam\ChatGPT\Exceptions\InvalidResponseException;
+use DvTeam\ChatGPT\Functions\Function\GPTProperties;
+use DvTeam\ChatGPT\Functions\Function\Types\GPTBooleanProperty;
+use DvTeam\ChatGPT\Functions\Function\Types\GPTIntegerProperty;
+use DvTeam\ChatGPT\Functions\Function\Types\GPTNumberProperty;
+use DvTeam\ChatGPT\Functions\Function\Types\GPTStringProperty;
+use DvTeam\ChatGPT\Functions\GPTFunction;
+use DvTeam\ChatGPT\Functions\GPTFunctions;
 use DvTeam\ChatGPT\MessageTypes\ChatInput;
 use DvTeam\ChatGPT\MessageTypes\ChatOutput;
 use DvTeam\ChatGPT\MessageTypes\ToolCall;
 use DvTeam\ChatGPT\MessageTypes\ToolResult;
 use DvTeam\ChatGPT\MessageTypes\WebSearchCall;
 use DvTeam\ChatGPT\MessageTypes\WebSearchResult;
+use DvTeam\ChatGPT\Reflection\CallableInvoker;
 use DvTeam\ChatGPT\Response\ChatFuncCallResult;
 use DvTeam\ChatGPT\Response\ChatResponse;
 use DvTeam\ChatGPT\Response\ChatResponseChoice;
 use DvTeam\ChatGPT\ResponseFormat\JsonSchemaResponseFormat;
-use DvTeam\ChatGPT\Functions\GPTFunction;
-use DvTeam\ChatGPT\Functions\Function\GPTProperties;
-use DvTeam\ChatGPT\Functions\Function\Types\GPTBooleanProperty;
-use DvTeam\ChatGPT\Functions\Function\Types\GPTIntegerProperty;
-use DvTeam\ChatGPT\Functions\Function\Types\GPTNumberProperty;
-use DvTeam\ChatGPT\Functions\Function\Types\GPTStringProperty;
-use DvTeam\ChatGPT\Functions\GPTFunctions;
-use DvTeam\ChatGPT\Reflection\CallableInvoker;
-use RuntimeException;
 use ReflectionFunction;
-use ReflectionMethod;
 use ReflectionFunctionAbstract;
+use ReflectionMethod;
+use RuntimeException;
 
 /**
  * The conversation class is responsible for managing interactions with ChatGPT.
@@ -70,6 +70,8 @@ class GPTConversation {
 	 * - Appends the assistant message (and any tool calls) to the context.
 	 * - Auto-executes callable tools locally and appends ToolResult, but does NOT
 	 *   call the API again. Caller must invoke step() again to continue.
+	 *
+	 * @return ChatResponseChoice<object>
 	 */
 	public function step(bool $rerunOnToolUse = true): ChatResponseChoice {
 		$this->rebuildFunctionsSpec();
@@ -221,6 +223,11 @@ class GPTConversation {
 		);
 	}
 
+	/**
+	 * @template T of object
+	 * @param ChatResponse<T> $response
+	 * @return ChatResponseChoice<T>
+	 */
 	private function absorbResponse(ChatResponse $response): ChatResponseChoice {
 		$choice = $response->firstChoice();
 
