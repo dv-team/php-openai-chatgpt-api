@@ -18,15 +18,10 @@ class ChatInput implements ChatMessage {
 		public ?ChatAttachment $attachment = null,
 	) {}
 
-	public function addToContext(array $context): array {
-		$context[] = $this;
-		return $context;
-	}
-
 	/**
 	 * Maps the structure of this ChatInput (optionally with an image) to the Responses API input schema.
 	 *
-	 * @return list<array{role: string, content: list<array{type: 'input_text', text: string}|array{type: 'input_image', image_url: array{url: string}}>}>
+	 * @return list<array{role: string, content: list<array{type: 'input_text', text: string}|array{type: 'input_image', image_url: string}>}>
 	 */
 	public function jsonSerialize(): array {
 		$content = [[
