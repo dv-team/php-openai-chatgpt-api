@@ -123,46 +123,8 @@ class ChatGPTContextArrayConversionTest extends TestCase {
 		self::assertEquals($expected, ChatGPT::contextAsArray($context));
 	}
 
-	public function testFromArrayLegacyToolCallPayload(): void {
-		$legacy = [
-			[
-				'type' => 'chat_output',
-				'result' => 'Tool-Call Request',
-				'tools' => [
-					[
-						// Legacy shape: `type` was the tool type.
-						'type' => 'function',
-						'id' => 'abc123',
-						'name' => 'my_func',
-						'arguments' => (object) ['file_name' => 'test.txt'],
-						'role' => 'assistant',
-					]
-				],
-			],
-			[
-				// Legacy shape: tool_call as its own context item (without explicit "tool_call" type).
-				'type' => 'function',
-				'id' => 'def456',
-				'name' => 'other_func',
-				'arguments' => ['x' => 1],
-				'role' => 'assistant',
-			],
-		];
-
-		$context = ChatGPT::contextFromArray($legacy);
-		/** @var array<int, array<string, mixed>> $roundtrip */
-		$roundtrip = ChatGPT::contextAsArray($context);
-
-		self::assertIsArray($roundtrip[0]['tools'] ?? null);
-		/** @var array<int, mixed> $tools0 */
-		$tools0 = $roundtrip[0]['tools'];
-		self::assertIsArray($tools0[0] ?? null);
-		/** @var array<string, mixed> $tool0 */
-		$tool0 = $tools0[0];
-		self::assertEquals('tool_call', $tool0['type'] ?? null);
-		self::assertEquals('function', $tool0['tool_type'] ?? null);
-
-		self::assertEquals('tool_call', $roundtrip[1]['type'] ?? null);
-		self::assertEquals('function', $roundtrip[1]['tool_type'] ?? null);
+	public function testFromArrayRejectsUnknownType(): void {
+		$this->expectException(\RuntimeException::class);
+		ChatGPT::contextFromArray([['type' => 'function', 'id' => 'x', 'name' => 'y', 'arguments' => []]]);
 	}
 }

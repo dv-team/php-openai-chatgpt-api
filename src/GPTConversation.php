@@ -20,7 +20,6 @@ use DvTeam\ChatGPT\MessageTypes\ToolResult;
 use DvTeam\ChatGPT\MessageTypes\WebSearchCall;
 use DvTeam\ChatGPT\MessageTypes\WebSearchResult;
 use DvTeam\ChatGPT\Reflection\CallableInvoker;
-use DvTeam\ChatGPT\Response\ChatFuncCallResult;
 use DvTeam\ChatGPT\Response\ChatResponse;
 use DvTeam\ChatGPT\Response\ChatResponseChoice;
 use DvTeam\ChatGPT\ResponseFormat\JsonSchemaResponseFormat;
@@ -73,7 +72,7 @@ class GPTConversation {
 	 *
 	 * @return ChatResponseChoice<object>
 	 */
-	public function step(bool $rerunOnToolUse = true): ChatResponseChoice {
+	public function step(bool $rerunOnToolUse = false): ChatResponseChoice {
 		$this->rebuildFunctionsSpec();
 
 		retry:
@@ -142,13 +141,18 @@ class GPTConversation {
 	 */
 	public function addWebSearch(string $query, ?array $userLocation = null, ?string $model = null, ?string $effort = null): self {
 		$toolId = uniqid('web_', true);
-		$this->addMessage(new WebSearchCall(
-			id: $toolId,
-			query: $query,
-			userLocation: $userLocation,
-			model: $model,
-			effort: $effort,
-		));
+		$this->context[] = new ChatOutput(
+			result: null,
+			tools: [
+				new WebSearchCall(
+					id: $toolId,
+					query: $query,
+					userLocation: $userLocation,
+					model: $model,
+					effort: $effort,
+				)
+			],
+		);
 		return $this;
 	}
 
@@ -237,7 +241,7 @@ class GPTConversation {
 			tools: $choice->tools,
 		);
 
-		/** @var ChatFuncCallResult[] $tools */
+		/** @var ToolCall[] $tools */
 		$tools = $choice->tools;
 
 		// Auto-execute callable tools and append ToolResult, but do not re-contact API.
@@ -248,25 +252,32 @@ class GPTConversation {
 		return $choice;
 	}
 
-	private function executeToolIfCallable(ChatFuncCallResult $tool): void {
-		if(!isset($this->callableMap[$tool->functionName])) {
+	private function executeToolIfCallable(ToolCall $tool): void {
+		$functionName = $tool->name;
+		$arguments = $tool->arguments;
+
+		if(is_array($arguments)) {
+			$arguments = self::normalizeArguments($arguments);
+		}
+
+		if(!isset($this->callableMap[$functionName])) {
 			foreach($this->callableTools as $callable) {
 				$spec = $this->buildFunctionSpec($callable);
-				if($spec['name'] === $tool->functionName) {
+				if($spec['name'] === $functionName) {
 					$this->callableMap[$spec['name']] = $callable;
 					break;
 				}
 			}
 		}
 
-		if(!isset($this->callableMap[$tool->functionName])) {
-			throw new RuntimeException("Missing executable for function {$tool->functionName}.");
+		if(!isset($this->callableMap[$functionName])) {
+			throw new RuntimeException("Missing executable for function {$functionName}.");
 		}
 
-		$callable = $this->callableMap[$tool->functionName];
+		$callable = $this->callableMap[$functionName];
 
 		/** @var array<string, mixed>|string|int|float|bool|null|object $result */
-		$result = CallableInvoker::invoke($callable, $tool->arguments);
+		$result = CallableInvoker::invoke($callable, $arguments);
 
 		$this->context[] = new ToolResult(
 			toolCallId: $tool->id,
@@ -298,7 +309,7 @@ class GPTConversation {
 		if($message instanceof ChatOutput) {
 			$result = $message->result;
 
-			/** @var ChatFuncCallResult[] $toolCalls */
+			/** @var ToolCall[] $toolCalls */
 			$toolCalls = $message->tools;
 
 			return [
@@ -308,21 +319,11 @@ class GPTConversation {
 			];
 		}
 
-		if($message instanceof ToolCall) {
-			return [
-				'type' => 'tool_call',
-				'id' => $message->id,
-				'name' => $message->name,
-				'arguments' => $message->arguments,
-			];
-		}
-
 		if($message instanceof ToolResult) {
 			return [
 				'type' => 'tool_result',
 				'call_id' => $message->toolCallId,
 				'content' => self::normalizeContent($message->content),
-				'role' => $message->role,
 			];
 		}
 
@@ -343,10 +344,10 @@ class GPTConversation {
 	/**
 	 * @return array<string, mixed>
 	 */
-	private function encodeToolCall(ChatFuncCallResult $tool): array {
+	private function encodeToolCall(ToolCall $tool): array {
 		return [
 			'id' => $tool->id,
-			'name' => $tool->functionName,
+			'name' => $tool->name,
 			'arguments' => $tool->arguments,
 		];
 	}
@@ -366,15 +367,9 @@ class GPTConversation {
 				result: self::normalizeResult($data['result'] ?? null),
 				tools: array_map([self::class, 'decodeToolCall'], is_array($data['tools'] ?? null) ? $data['tools'] : [])
 			),
-			'tool_call' => new ToolCall(
-				id: is_string($data['id'] ?? null) ? $data['id'] : '',
-				name: is_string($data['name'] ?? null) ? $data['name'] : '',
-				arguments: self::normalizeArguments($data['arguments'] ?? []),
-			),
 			'tool_result' => new ToolResult(
 				toolCallId: is_string($data['call_id'] ?? null) ? $data['call_id'] : '',
 				content: self::normalizeContent($data['content'] ?? null),
-				role: is_string($data['role'] ?? null) ? $data['role'] : 'tool'
 			),
 			'web_search_result' => new WebSearchResult(
 				id: is_string($data['id'] ?? null) ? $data['id'] : '',
@@ -387,17 +382,12 @@ class GPTConversation {
 	/**
 	 * @param array<string, mixed> $data
 	 */
-	private static function decodeToolCall(array $data): ChatFuncCallResult {
+	private static function decodeToolCall(array $data): ToolCall {
 		$id = is_string($data['id'] ?? null) ? $data['id'] : '';
 		$name = is_string($data['name'] ?? null) ? $data['name'] : '';
 		$arguments = self::normalizeArguments($data['arguments'] ?? []);
 
-		return new ChatFuncCallResult(
-			id: $id,
-			functionName: $name,
-			arguments: $arguments,
-			toolCallMessage: new ToolCall($id, $name, $arguments)
-		);
+		return new ToolCall($id, $name, $arguments);
 	}
 
 	private static function normalizeArguments(mixed $raw): object {

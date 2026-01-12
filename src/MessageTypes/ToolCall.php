@@ -68,6 +68,10 @@ class ToolCall implements ContextSerializable {
 			$data = (array) $data;
 		}
 
+		if(($data['type'] ?? null) !== 'tool_call') {
+			throw new InvalidArgumentException('Invalid tool_call payload.');
+		}
+
 		$id = $data['id'] ?? null;
 		$name = $data['name'] ?? null;
 		$role = $data['role'] ?? 'assistant';
@@ -77,17 +81,7 @@ class ToolCall implements ContextSerializable {
 			throw new InvalidArgumentException('Invalid tool_call payload.');
 		}
 
-		$toolType = $data['tool_type'] ?? null;
-		$type = $data['type'] ?? null;
-
-		if(is_string($toolType)) {
-			$toolType = $toolType;
-		} elseif(is_string($type) && $type !== 'tool_call') {
-			// Legacy payload: `type` was the tool type (e.g. "function")
-			$toolType = $type;
-		} else {
-			$toolType = 'function';
-		}
+		$toolType = is_string($data['tool_type'] ?? null) ? (string) $data['tool_type'] : 'function';
 
 		if(is_object($arguments)) {
 			$arguments = json_decode(JSON::stringify($arguments), true, 512, JSON_THROW_ON_ERROR);

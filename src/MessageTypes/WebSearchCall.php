@@ -107,64 +107,30 @@ class WebSearchCall extends ToolCall {
 
 		$type = $data['type'] ?? null;
 
-		// Native payload
-		if($type === 'web_search_call') {
-			$id = $data['id'] ?? null;
-			$query = $data['query'] ?? null;
-			$userLocation = $data['user_location'] ?? null;
-			$model = $data['model'] ?? null;
-			$effort = $data['effort'] ?? null;
-
-			if(!is_string($id) || !is_string($query)) {
-				throw new InvalidArgumentException('Invalid web_search_call payload.');
-			}
-
-			if(is_object($userLocation)) {
-				$userLocation = json_decode(JSON::stringify($userLocation), true, 512, JSON_THROW_ON_ERROR);
-			}
-
-			return new self(
-				id: $id,
-				query: $query,
-				userLocation: is_array($userLocation) ? $userLocation : null,
-				model: is_string($model) ? $model : null,
-				effort: is_string($effort) ? $effort : null,
-			);
+		if($type !== 'web_search_call') {
+			throw new InvalidArgumentException('Invalid web_search_call payload.');
 		}
 
-		// Legacy tool-call style payload
 		$id = $data['id'] ?? null;
-		$name = $data['name'] ?? null;
-		$args = $data['arguments'] ?? null;
+		$query = $data['query'] ?? null;
+		$userLocation = $data['user_location'] ?? null;
+		$model = $data['model'] ?? null;
+		$effort = $data['effort'] ?? null;
 
-		if(!is_string($id) || $name !== 'web_search') {
-			throw new InvalidArgumentException('Invalid legacy web_search tool call payload.');
+		if(!is_string($id) || !is_string($query)) {
+			throw new InvalidArgumentException('Invalid web_search_call payload.');
 		}
 
-		if(is_object($args)) {
-			$args = (array) $args;
-		}
-		if(!is_array($args)) {
-			throw new InvalidArgumentException('Invalid legacy web_search tool call arguments payload.');
-		}
-
-		$query = $args['query'] ?? null;
-		if(!is_string($query)) {
-			throw new InvalidArgumentException('Invalid legacy web_search tool call query payload.');
+		if(is_object($userLocation)) {
+			$userLocation = json_decode(JSON::stringify($userLocation), true, 512, JSON_THROW_ON_ERROR);
 		}
 
 		return new self(
 			id: $id,
 			query: $query,
-			userLocation: (function() use ($args): ?array {
-				$loc = $args['user_location'] ?? null;
-				if(is_object($loc)) {
-					$loc = json_decode(JSON::stringify($loc), true, 512, JSON_THROW_ON_ERROR);
-				}
-				return is_array($loc) ? $loc : null;
-			})(),
-			model: isset($args['model']) && is_string($args['model']) ? $args['model'] : null,
-			effort: isset($args['effort']) && is_string($args['effort']) ? $args['effort'] : null,
+			userLocation: is_array($userLocation) ? $userLocation : null,
+			model: is_string($model) ? $model : null,
+			effort: is_string($effort) ? $effort : null,
 		);
 	}
 }

@@ -101,7 +101,7 @@ class ChatOutput implements ChatMessage, ContextSerializable {
 				$type = $tool['type'] ?? null;
 				$name = $tool['name'] ?? null;
 
-				if($type === 'web_search_call' || (($type === 'tool_call' || $type === 'function') && $name === 'web_search')) {
+				if($type === 'web_search_call') {
 					$tools[] = WebSearchCall::contextUnserialize($tool);
 					continue;
 				}

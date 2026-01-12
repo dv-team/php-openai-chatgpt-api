@@ -5,6 +5,7 @@ namespace DvTeam\ChatGPT;
 use DvTeam\ChatGPT\Common\ChatEnquiry;
 use DvTeam\ChatGPT\Common\ChatMessage;
 use DvTeam\ChatGPT\Common\ChatModelName;
+use DvTeam\ChatGPT\Common\ContextSerializable;
 use DvTeam\ChatGPT\Common\JSON;
 use DvTeam\ChatGPT\Common\JsonSchemaValidatorInterface;
 use DvTeam\ChatGPT\Common\MessageInterceptorInterface;
@@ -17,14 +18,18 @@ use DvTeam\ChatGPT\Functions\GPTFunction;
 use DvTeam\ChatGPT\Functions\GPTFunctions;
 use DvTeam\ChatGPT\Http\HttpPostInterface;
 use DvTeam\ChatGPT\Http\LLMNetworkException;
+use DvTeam\ChatGPT\MessageTypes\ChatInput;
+use DvTeam\ChatGPT\MessageTypes\ChatOutput;
 use DvTeam\ChatGPT\MessageTypes\ToolCall;
+use DvTeam\ChatGPT\MessageTypes\ToolResult;
+use DvTeam\ChatGPT\MessageTypes\WebSearchCall;
+use DvTeam\ChatGPT\MessageTypes\WebSearchResult;
 use DvTeam\ChatGPT\PredefinedModels\LLMCustomModel;
 use DvTeam\ChatGPT\PredefinedModels\LLMMediumNoReasoning;
 use DvTeam\ChatGPT\PredefinedModels\LLMMediumReasoning;
 use DvTeam\ChatGPT\PredefinedModels\LLMSmallReasoning;
 use DvTeam\ChatGPT\PredefinedModels\TextToSpeech\GPTMiniTextToSpeech;
 use DvTeam\ChatGPT\PredefinedModels\TextToSpeech\TextToSpeechModel;
-use DvTeam\ChatGPT\Response\ChatFuncCallResult;
 use DvTeam\ChatGPT\Response\ChatResponse;
 use DvTeam\ChatGPT\Response\ChatResponseChoice;
 use DvTeam\ChatGPT\Response\WebSearchResponse;
@@ -215,6 +220,56 @@ class ChatGPT {
 				}
 			}
 		};
+	}
+
+	/**
+	 * Convert a complete context (message objects) to simple structure data.
+	 *
+	 * @param array<int, ChatMessage|ToolCall> $context
+	 * @return array<int, array<string, mixed>>
+	 */
+	public static function contextAsArray(array $context): array {
+		$result = [];
+		foreach($context as $message) {
+			if(!$message instanceof ContextSerializable) {
+				throw new RuntimeException(sprintf('Unsupported message type for context serialization: %s', $message::class));
+			}
+
+			$result[] = $message->contextSerialize();
+		}
+
+		return $result;
+	}
+
+	/**
+	 * Convert a complete context (simple structure data) back to message objects.
+	 *
+	 * Accepts both associative arrays and stdClass payloads (e.g. from json_decode()).
+	 *
+	 * @param array<int, array<string, mixed>|object> $context
+	 * @return array<int, ChatMessage|ToolCall>
+	 */
+	public static function contextFromArray(array $context): array {
+		$result = [];
+		foreach($context as $messageData) {
+			if(is_object($messageData)) {
+				$messageData = (array) $messageData;
+			}
+
+			$type = $messageData['type'] ?? null;
+
+			$result[] = match($type) {
+				'chat_input' => ChatInput::contextUnserialize($messageData),
+				'chat_output' => ChatOutput::contextUnserialize($messageData),
+				'tool_call' => ToolCall::contextUnserialize($messageData),
+				'tool_result' => ToolResult::contextUnserialize($messageData),
+				'web_search_call' => WebSearchCall::contextUnserialize($messageData),
+				'web_search_result' => WebSearchResult::contextUnserialize($messageData),
+				default => throw new RuntimeException('Unsupported message type in serialized context.'),
+			};
+		}
+
+		return $result;
 	}
 
 	/**
@@ -629,7 +684,7 @@ class ChatGPT {
 	/**
 	 * Convert a Responses API tool call (or tool_call/tool message) to our ChatFuncCallResult.
 	 */
-	private function mapToolCallToResult(object $toolCall): ChatFuncCallResult {
+	private function mapToolCallToResult(object $toolCall): ToolCall {
 		$fnName = $toolCall->function->name ?? $toolCall->name ?? null;
 		$argumentsRaw = $toolCall->function->arguments ?? $toolCall->arguments ?? null;
 		$id = $toolCall->call_id ?? $toolCall->id ?? null;
@@ -640,15 +695,12 @@ class ChatGPT {
 
 		$arguments = $this->normalizeToolArguments($argumentsRaw);
 
-		return new ChatFuncCallResult(
+		return new ToolCall(
 			id: $id,
-			functionName: $fnName,
+			name: $fnName,
 			arguments: $arguments,
-			toolCallMessage: new ToolCall(
-				id: $id,
-				name: $fnName,
-				arguments: $arguments
-			)
+			type: $toolCall->type ?? 'function_call',
+			role: $toolCall->type ?? 'assistant',
 		);
 	}
 
