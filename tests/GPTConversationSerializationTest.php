@@ -9,6 +9,7 @@ use DvTeam\ChatGPT\Attributes\GPTParameterDescriptor;
 use DvTeam\ChatGPT\Http\Psr18HttpClient;
 use DvTeam\ChatGPT\Common\JSON;
 use DvTeam\ChatGPT\MessageTypes\ChatInput;
+use DvTeam\ChatGPT\MessageTypes\ToolCall;
 use DvTeam\ChatGPT\MessageTypes\ToolResult;
 use DvTeam\ChatGPT\PredefinedModels\LLMMediumNoReasoning;
 use GuzzleHttp\Psr7\HttpFactory;
@@ -99,10 +100,10 @@ final class GPTConversationSerializationTest extends TestCase {
 		$first = $conversation->step();
 
 		$this->assertNull($first->result);
-		/** @var \DvTeam\ChatGPT\Response\ChatFuncCallResult[] $tools */
+		/** @var ToolCall[] $tools */
 		$tools = $first->tools;
 		$this->assertCount(1, $tools);
-		$this->assertSame('get_number_by_letter', $tools[0]->functionName);
+		$this->assertSame('get_number_by_letter', $tools[0]->name);
 
 		$this->assertCount(3, $conversation->getContext());
 		$this->assertInstanceOf(ToolResult::class, $conversation->getContext()[2]);

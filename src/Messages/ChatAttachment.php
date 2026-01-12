@@ -6,7 +6,7 @@ interface ChatAttachment {
 	/**
 	 * Maps the attachment to the Responses API input schema message content items.
 	 *
-	 * @return list<array<string, mixed>>
+	 * @return object[]
 	 */
 	public function toInputContentParts(): array;
 }

@@ -9,10 +9,9 @@ use DvTeam\ChatGPT\Common\TestTools;
 use DvTeam\ChatGPT\Attributes\GPTCallableDescriptor;
 use DvTeam\ChatGPT\Attributes\GPTParameterDescriptor;
 use DvTeam\ChatGPT\Http\Psr18HttpClient;
-use DvTeam\ChatGPT\GPTConversation;
 use DvTeam\ChatGPT\MessageTypes\ChatInput;
+use DvTeam\ChatGPT\MessageTypes\ToolCall;
 use DvTeam\ChatGPT\MessageTypes\ToolResult;
-use DvTeam\ChatGPT\Response\ChatFuncCallResult;
 use GuzzleHttp\Psr7\HttpFactory;
 use GuzzleHttp\Psr7\Response;
 use PHPUnit\Framework\TestCase;
@@ -91,17 +90,17 @@ class ChatGPTToolCallingTest extends TestCase {
 		$this->assertNull($choice->result);
 		$this->assertCount(2, $choice->tools);
 
-		/** @var ChatFuncCallResult $firstTool */
+		/** @var ToolCall $firstTool */
 		$firstTool = $choice->tools[0];
-		/** @var ChatFuncCallResult $secondTool */
+		/** @var ToolCall $secondTool */
 		$secondTool = $choice->tools[1];
 
-		$this->assertInstanceOf(ChatFuncCallResult::class, $firstTool);
-		$this->assertSame('get_number_by_letter', $firstTool->functionName);
+		$this->assertInstanceOf(ToolCall::class, $firstTool);
+		$this->assertSame('get_number_by_letter', $firstTool->name);
 		$this->assertSame('A', $firstTool->arguments->letter ?? null);
 		$this->assertSame('call_number_a', $firstTool->id);
 
-		$this->assertInstanceOf(ChatFuncCallResult::class, $secondTool);
+		$this->assertInstanceOf(ToolCall::class, $secondTool);
 		$this->assertSame('C', $secondTool->arguments->letter ?? null);
 		$this->assertSame('call_number_c', $secondTool->id);
 

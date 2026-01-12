@@ -63,7 +63,7 @@ Key concepts:
 
 - Pure stateless client: you pass the full message list; it returns a single model response.
 - No automatic tool execution or recursion; you decide what to do with tool calls.
-- Context is an array of chat messages (e.g., `ChatInput`, `ToolCall`, `ToolResult`).
+- Context is an array of chat messages (e.g., `ChatInput`, `ChatOutput`, `ToolResult`).
 - Optional `functions` enables tool/function-calling.
 - Optional `responseFormat` enforces structured JSON responses.
 - Optional `model` lets you choose a predefined or custom model name.
@@ -178,6 +178,7 @@ use DvTeam\ChatGPT\Functions\Function\Types\GPTNumberProperty;
 use DvTeam\ChatGPT\Functions\Function\Types\GPTStringProperty;
 use DvTeam\ChatGPT\Functions\GPTFunction;
 use DvTeam\ChatGPT\MessageTypes\ChatInput;
+use DvTeam\ChatGPT\MessageTypes\ChatOutput;
 use DvTeam\ChatGPT\MessageTypes\ToolResult;
 use DvTeam\ChatGPT\ResponseFormat\JsonSchemaResponseFormat;
 
@@ -196,13 +197,13 @@ $functions = new GPTFunctions(
 
 // 1) Let the model decide if it wants to call a tool
 $response = $chat->chat(context: $context, functions: $functions);
+$choice = $response->firstChoice();
 
-foreach ($response->firstChoice()->tools as $tool) {
-    if ($tool->functionName === 'get_temperature') {
-        // Add the tool-call message to the context
-        $context[] = $tool->toolCallMessage;
+// Add the assistant output (including tool calls) to the context
+$context[] = $choice->getChatOutput();
 
-        // Execute your system/tool here and add the result
+foreach ($choice->tools as $tool) {
+    if ($tool->name === 'get_temperature') {
         $context[] = new ToolResult(
             toolCallId: $tool->id,
             content: ['temperature' => 21.2, 'unit' => 'celsius'],
@@ -213,6 +214,15 @@ foreach ($response->firstChoice()->tools as $tool) {
 // 2) Ask the model to continue with the new context
 $response = $chat->chat(context: $context, functions: $functions);
 echo $response->firstChoice()->result, "\n";
+```
+
+## Context Serialization
+
+Convert a complete context (message objects) to simple structure data and back (e.g. for persistence or transport):
+
+```php
+$payload = ChatGPT::contextAsArray($context);      // array<int, array<string, mixed>>
+$context = ChatGPT::contextFromArray($payload);    // message objects again
 ```
 
 ### Example: `test-tool-function-calling.php`

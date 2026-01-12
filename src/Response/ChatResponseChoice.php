@@ -2,6 +2,7 @@
 
 namespace DvTeam\ChatGPT\Response;
 
+use DvTeam\ChatGPT\MessageTypes\ChatOutput;
 use DvTeam\ChatGPT\MessageTypes\ToolCall;
 use JsonSerializable;
 
@@ -14,7 +15,7 @@ use JsonSerializable;
 class ChatResponseChoice implements JsonSerializable {
 	/**
 	 * @param null|string|T $result
-	 * @param object{toolCallMessage: ToolCall}[] $tools
+	 * @param ToolCall[] $tools
 	 * @param null|string $textResult
 	 * @param null|T $objResult
 	 */
@@ -25,6 +26,13 @@ class ChatResponseChoice implements JsonSerializable {
 		public readonly ?object $objResult,
 		public readonly array $tools,
 	) {}
+
+	public function getChatOutput(): ChatOutput {
+		return new ChatOutput(
+			result: $this->result,
+			tools: $this->tools
+		);
+	}
 
 	/**
 	 * @return array{result: null|string|object, tools: object[]}

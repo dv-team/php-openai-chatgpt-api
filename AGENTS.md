@@ -37,6 +37,13 @@ $followUp = $conversation->step();
 echo $followUp->result;
 ```
 
+Context <-> Array (persist / transport)
+
+```php
+$payload = ChatGPT::contextAsArray($conversation->getContext()); // array<int, array<string, mixed>>
+$context = ChatGPT::contextFromArray($payload);                 // message objects again
+```
+
 Structured JSON responses
 
 ```php
@@ -75,8 +82,8 @@ $getNumber = new GPTFunctions(new GPTFunction(
 ));
 
 $step1 = $chat->chat(context: $context, functions: $getNumber)->firstChoice(); // one API call
+$context[] = $step1->getChatOutput(); // includes tool calls in context
 foreach ($step1->tools as $tool) {
-    $context[] = $tool->toolCallMessage;
     $args = $tool->arguments;
     $context[] = new ToolResult($tool->id, match($args->letter) { 'A' => 1, 'B' => 2, 'C' => 3, default => null });
 }
@@ -88,8 +95,8 @@ $getWord = new GPTFunctions(new GPTFunction(
 ));
 $context[] = new ChatInput('Get the word for the numbers using tool get_a_word_by_number.');
 $step2 = $chat->chat(context: $context, functions: $getWord)->firstChoice();
+$context[] = $step2->getChatOutput(); // includes tool calls in context
 foreach ($step2->tools as $tool) {
-    $context[] = $tool->toolCallMessage;
     $n = $tool->arguments->number;
     $context[] = new ToolResult($tool->id, match($n) { 1 => 'Sun', 2 => 'Moon', 3 => 'Earth' });
 }

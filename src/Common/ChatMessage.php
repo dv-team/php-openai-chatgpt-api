@@ -6,7 +6,7 @@ use JsonSerializable;
 
 interface ChatMessage extends JsonSerializable {
 	/**
-	 * @return list<array<string, mixed>>
+	 * @return object[]
 	 */
 	public function jsonSerialize(): array;
 }

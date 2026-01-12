@@ -2,15 +2,17 @@
 
 namespace DvTeam\ChatGPT\MessageTypes;
 
+use DvTeam\ChatGPT\Common\ContextSerializable;
 use DvTeam\ChatGPT\Common\ChatMessage;
+use InvalidArgumentException;
 
 /**
- * Spezielle Hilfsklasse für das Ergebnis einer Websuche im Chat-Kontext.
+ * Special helper class for the result of a web search in the chat context.
  *
- * Diese Klasse erweitert ToolResult, setzt standardmäßig den Namen
- * 'web_search' und erlaubt einfache Konstruktion aus Text/Texts.
+ * This class extends ToolResult, sets the name 'web_search' by default,
+ * and allows simple construction from text/texts.
  */
-class WebSearchResult implements ChatMessage {
+class WebSearchResult implements ChatMessage, ContextSerializable {
 	/**
 	 * @param string $id ID des zugehörigen WebSearchCall
 	 * @param string|array<string, mixed> $content
@@ -47,13 +49,48 @@ class WebSearchResult implements ChatMessage {
 	}
 
 	/**
-	 * @return list<array{type: 'tool_result', tool_id: string, content: mixed}>
+	 * @return list<object{type: 'tool_result', tool_id: string, content: mixed}>
 	 */
 	public function jsonSerialize(): array {
-		return [[
-			'type' => 'tool_result',
-			'tool_id' => $this->id,
+		return [
+			(object) [
+				'type' => 'tool_result',
+				'tool_id' => $this->id,
+				'content' => $this->content,
+			]
+		];
+	}
+
+	/**
+	 * @return array{type: 'web_search_result', id: string, content: string|array<string, mixed>}
+	 */
+	public function contextSerialize(): array {
+		return [
+			'type' => 'web_search_result',
+			'id' => $this->id,
 			'content' => $this->content,
-		]];
+		];
+	}
+
+	public static function contextUnserialize(array|object $data): self {
+		if(is_object($data)) {
+			$data = (array) $data;
+		}
+
+		$id = $data['id'] ?? $data['tool_id'] ?? null;
+		$content = $data['content'] ?? null;
+
+		if(!is_string($id) || (!is_string($content) && !is_array($content))) {
+			throw new InvalidArgumentException('Invalid web_search_result payload.');
+		}
+
+		return new self(
+			id: $id,
+			content: $content,
+		);
+	}
+
+	public function __serialize(): array {
+		return $this->contextSerialize();
 	}
 }
