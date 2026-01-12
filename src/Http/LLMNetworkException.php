@@ -9,7 +9,7 @@ class LLMNetworkException extends LLMException {
 	/**
 	 * @param array<string, string[]> $headers
 	 */
-	public function __construct(public string $contents, public array $headers, int $statusCode, Throwable $previous = null) {
+	public function __construct(public string $contents, public array $headers, int $statusCode, ?Throwable $previous = null) {
 		$message = '';
 		try {
 			/** @var object{error?: object{message?: string}} $data */
