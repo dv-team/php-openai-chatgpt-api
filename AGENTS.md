@@ -26,6 +26,11 @@ $http = Psr18HttpClient::create(
 $chat = new ChatGPT(token: $token, httpPostClient: $http);
 ```
 
+Attachments (e.g. images)
+
+- `ChatInput` supports `attachment: ChatAttachment` and will append `toInputContentParts()` to the message content.
+- For context persistence/rehydration (`contextAsArray` / `contextFromArray`), the attachment should also implement `ContextSerializable` and you must register its serialized `type` via `ChatInput::registerAttachmentType(...)`.
+
 Basic chat and follow-ups
 
 ```php

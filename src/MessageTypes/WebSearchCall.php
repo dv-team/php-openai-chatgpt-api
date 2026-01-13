@@ -63,7 +63,6 @@ class WebSearchCall extends ToolCall {
 			name: 'web_search',
 			arguments: $args,
 			type: 'function',
-			role: 'assistant',
 		);
 	}
 

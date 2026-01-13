@@ -700,7 +700,6 @@ class ChatGPT {
 			name: $fnName,
 			arguments: $arguments,
 			type: $toolCall->type ?? 'function_call',
-			role: $toolCall->type ?? 'assistant',
 		);
 	}
 

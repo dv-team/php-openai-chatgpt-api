@@ -28,7 +28,7 @@ class ChatGPTContextArrayConversionTest extends TestCase {
 			new ChatOutput(result: '... image description ...', tools: []),
 
 			new ChatOutput(result: 'Tool-Call Request', tools: [
-				new ToolCall(id: 'abc123', name: 'my_func', arguments: ['file_name' => 'test.txt'], type: 'function', role: 'assistant'),
+				new ToolCall(id: 'abc123', name: 'my_func', arguments: ['file_name' => 'test.txt'], type: 'function'),
 			]),
 			new ToolResult(toolCallId: 'abc123', content: 'File contents'),
 
@@ -85,7 +85,6 @@ class ChatGPTContextArrayConversionTest extends TestCase {
 						'name' => 'my_func',
 						'arguments' => ['file_name' => 'test.txt'],
 						'tool_type' => 'function',
-						'role' => 'assistant',
 					]
 				],
 			],

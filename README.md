@@ -12,7 +12,7 @@ This library focuses on clear, composable building blocks that work well in typi
 
 ## Installation
 
-- Library: `composer require rkr/openai-chatgpt-api`
+- Library: `composer require dv-team/openai-chatgpt-api`
 - Optional (for examples below): `composer require guzzlehttp/guzzle nyholm/psr7`
 
 Requirements: PHP 8.1+, `ext-json` and other common extensions (see `composer.json`).
@@ -132,6 +132,37 @@ $response = $chat->chat([
         attachment: new ChatImageUrl("data:image/jpeg;base64,$b64")
     ),
 ]);
+```
+
+Custom attachments:
+
+- Any attachment must implement `DvTeam\ChatGPT\Messages\ChatAttachment` (it provides `toInputContentParts()`).
+- If you want to serialize and later resume a conversation context, the attachment should also implement `DvTeam\ChatGPT\Common\ContextSerializable`
+  and you must register a decoder for its serialized `type`:
+
+```php
+use DvTeam\ChatGPT\Common\ContextSerializable;
+use DvTeam\ChatGPT\MessageTypes\ChatInput;
+use DvTeam\ChatGPT\Messages\ChatAttachment;
+
+final class CustomImageUrlAttachment implements ChatAttachment, ContextSerializable {
+    public function __construct(public string $url) {}
+
+    public function toInputContentParts(): array {
+        return [(object)['type' => 'input_image', 'image_url' => $this->url]];
+    }
+
+    public function contextSerialize(): array {
+        return ['type' => 'custom_image_url', 'url' => $this->url];
+    }
+
+    public static function contextUnserialize(array|object $data): self {
+        $data = is_object($data) ? (array) $data : $data;
+        return new self((string) ($data['url'] ?? ''));
+    }
+}
+
+ChatInput::registerAttachmentType('custom_image_url', [CustomImageUrlAttachment::class, 'contextUnserialize']);
 ```
 
 ## Structured JSON Responses
