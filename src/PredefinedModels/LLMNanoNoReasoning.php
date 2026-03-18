@@ -6,6 +6,6 @@ use DvTeam\ChatGPT\Common\ChatModelName;
 
 class LLMNanoNoReasoning implements ChatModelName {
 	public function __toString(): string {
-		return 'gpt-5-nano';
+		return 'gpt-5.4-nano';
 	}
 }
