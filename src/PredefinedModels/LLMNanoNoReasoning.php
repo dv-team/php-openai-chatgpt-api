@@ -8,4 +8,16 @@ class LLMNanoNoReasoning implements ChatModelName {
 	public function __toString(): string {
 		return 'gpt-5.4-nano';
 	}
+
+	public function supportsTemperature(): bool {
+		return true;
+	}
+
+	public function supportsTopP(): bool {
+		return true;
+	}
+
+	public function supportsMaxTokens(): bool {
+		return true;
+	}
 }

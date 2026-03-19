@@ -7,6 +7,11 @@ Setup
   - `\DvTeam\ChatGPT\PredefinedModels\LLMMediumNoReasoning` translates to the large models like `gpt-5.1`.
   - `\DvTeam\ChatGPT\PredefinedModels\LLMSmallNoReasoning` translates to the mini models like `gpt-5.1-mini`.
   - `\DvTeam\ChatGPT\PredefinedModels\LLMNanoNoReasoning` translates to the nano models like `gpt-5.1-nano`.
+- `ChatModelName` models announce support for tunables via:
+  - `supportsTemperature(): bool`
+  - `supportsTopP(): bool`
+  - `supportsMaxTokens(): bool`
+- `ChatGPT::chat()` only includes `temperature`, `top_p`, and `max_output_tokens` in API requests when the chosen model reports support.
 - Use PSR-18 with the built-in adapter `src/Http/Psr18HttpClient.php` (no DI container needed):
 
 ```php

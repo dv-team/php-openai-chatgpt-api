@@ -67,6 +67,11 @@ Key concepts:
 - Optional `functions` enables tool/function-calling.
 - Optional `responseFormat` enforces structured JSON responses.
 - Optional `model` lets you choose a predefined or custom model name.
+- `ChatModelName` now announces request-parameter support via:
+  - `supportsTemperature(): bool`
+  - `supportsTopP(): bool`
+  - `supportsMaxTokens(): bool`
+- `ChatGPT::chat()` only sends `temperature`, `top_p`, and `max_output_tokens` when the selected model reports support for each parameter.
 
 Single-turn example using the default model:
 

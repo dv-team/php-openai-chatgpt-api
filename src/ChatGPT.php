@@ -76,6 +76,9 @@ use RuntimeException;
  * @phpstan-type TRequestData object{
  *     model: string,
  *     input: array<int, TRequestMessageInput>,
+ *     max_output_tokens?: int,
+ *     temperature?: float|int,
+ *     top_p?: float|int,
  *     text?: TRequestTextConfig,
  *     tools?: object{name?: string, type?: string}[],
  *     tool_choice?: string
@@ -604,15 +607,15 @@ class ChatGPT {
 				$body['text']['format'] = $this->mapResponseFormatForResponsesApi($enquiry->responseFormat);
 			}
 
-			if($enquiry->maxTokens !== null) {
+			if($enquiry->maxTokens !== null && $enquiry->model->supportsMaxTokens()) {
 				$body['max_output_tokens'] = $enquiry->maxTokens;
 			}
 
-			if($enquiry->temperature !== null) {
+			if($enquiry->temperature !== null && $enquiry->model->supportsTemperature()) {
 				$body['temperature'] = $enquiry->temperature;
 			}
 
-			if($enquiry->topP !== null) {
+			if($enquiry->topP !== null && $enquiry->model->supportsTopP()) {
 				$body['top_p'] = $enquiry->topP;
 			}
 

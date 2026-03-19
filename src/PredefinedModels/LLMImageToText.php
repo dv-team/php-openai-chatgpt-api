@@ -8,4 +8,16 @@ class LLMImageToText implements ChatModelName {
 	public function __toString(): string {
 		return 'gpt-5';
 	}
+
+	public function supportsTemperature(): bool {
+		return false;
+	}
+
+	public function supportsTopP(): bool {
+		return false;
+	}
+
+	public function supportsMaxTokens(): bool {
+		return true;
+	}
 }

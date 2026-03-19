@@ -13,4 +13,16 @@ class LLMCustomModel implements ChatModelName {
 	public function __toString(): string {
 		return $this->model;
 	}
+
+	public function supportsTemperature(): bool {
+		return $this->effort === null;
+	}
+
+	public function supportsTopP(): bool {
+		return $this->effort === null;
+	}
+
+	public function supportsMaxTokens(): bool {
+		return true;
+	}
 }
