@@ -10,7 +10,7 @@ class LLMSmallReasoning implements ChatModelName {
 	) {}
 
 	public function __toString(): string {
-		return 'gpt-5.5-mini';
+		return 'gpt-5.4-mini';
 	}
 
 	public function supportsTemperature(): bool {
