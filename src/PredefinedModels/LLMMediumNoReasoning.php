@@ -10,11 +10,11 @@ class LLMMediumNoReasoning implements ChatModelName {
 	}
 
 	public function supportsTemperature(): bool {
-		return false;
+		return true;
 	}
 
 	public function supportsTopP(): bool {
-		return false;
+		return true;
 	}
 
 	public function supportsMaxTokens(): bool {
