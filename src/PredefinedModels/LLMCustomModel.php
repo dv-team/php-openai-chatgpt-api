@@ -3,8 +3,9 @@
 namespace DvTeam\ChatGPT\PredefinedModels;
 
 use DvTeam\ChatGPT\Common\ChatModelName;
+use DvTeam\ChatGPT\Common\ReasoningEffortProvider;
 
-class LLMCustomModel implements ChatModelName {
+class LLMCustomModel implements ChatModelName, ReasoningEffortProvider {
 	public function __construct(
 		public readonly string $model,
 		public readonly ?ReasoningEffort $effort = null
@@ -24,5 +25,9 @@ class LLMCustomModel implements ChatModelName {
 
 	public function supportsMaxTokens(): bool {
 		return true;
+	}
+
+	public function reasoningEffort(): ?ReasoningEffort {
+		return $this->effort;
 	}
 }

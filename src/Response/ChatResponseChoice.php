@@ -16,6 +16,7 @@ class ChatResponseChoice implements JsonSerializable {
 	/**
 	 * @param null|string|T $result
 	 * @param ToolCall[] $tools
+	 * @param object[] $outputItems Raw Responses API output items for lossless replay.
 	 * @param null|string $textResult
 	 * @param null|T $objResult
 	 */
@@ -25,22 +26,41 @@ class ChatResponseChoice implements JsonSerializable {
 		public readonly ?string $textResult,
 		public readonly ?object $objResult,
 		public readonly array $tools,
+		public readonly array $outputItems = [],
+		public readonly ?string $responseId = null,
+		public readonly ?ResponseUsage $usage = null,
 	) {}
 
 	public function getChatOutput(): ChatOutput {
 		return new ChatOutput(
 			result: $this->result,
-			tools: $this->tools
+			tools: $this->tools,
+			outputItems: $this->outputItems,
 		);
 	}
 
 	/**
-	 * @return array{result: null|string|object, tools: object[]}
+	 * @return array{
+	 *     result: null|string|object,
+	 *     tools: object[],
+	 *     response_id?: string,
+	 *     usage?: array<string, mixed>
+	 * }
 	 */
 	public function jsonSerialize(): array {
-		return [
+		$data = [
 			'result' => $this->result,
 			'tools' => $this->tools,
 		];
+
+		if($this->responseId !== null) {
+			$data['response_id'] = $this->responseId;
+		}
+
+		if($this->usage !== null) {
+			$data['usage'] = $this->usage->jsonSerialize();
+		}
+
+		return $data;
 	}
 }

@@ -5,21 +5,17 @@ namespace DvTeam\ChatGPT\PredefinedModels;
 use DvTeam\ChatGPT\Common\ChatModelName;
 use DvTeam\ChatGPT\Common\ReasoningEffortProvider;
 
-class LLMMediumReasoning implements ChatModelName, ReasoningEffortProvider {
-	public function __construct(
-		public readonly ReasoningEffort $effort
-	) {}
-
+class LLMLargeNoReasoning implements ChatModelName, ReasoningEffortProvider {
 	public function __toString(): string {
-		return 'gpt-5.6-terra';
+		return 'gpt-5.6-sol';
 	}
 
 	public function supportsTemperature(): bool {
-		return false;
+		return true;
 	}
 
 	public function supportsTopP(): bool {
-		return false;
+		return true;
 	}
 
 	public function supportsMaxTokens(): bool {
@@ -27,6 +23,6 @@ class LLMMediumReasoning implements ChatModelName, ReasoningEffortProvider {
 	}
 
 	public function reasoningEffort(): ReasoningEffort {
-		return $this->effort;
+		return ReasoningEffort::None;
 	}
 }

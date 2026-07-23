@@ -9,6 +9,8 @@ use DvTeam\ChatGPT\Common\ContextSerializable;
 use DvTeam\ChatGPT\Common\JSON;
 use DvTeam\ChatGPT\Common\JsonSchemaValidatorInterface;
 use DvTeam\ChatGPT\Common\MessageInterceptorInterface;
+use DvTeam\ChatGPT\Common\PromptCacheOptions;
+use DvTeam\ChatGPT\Common\ReasoningEffortProvider;
 use DvTeam\ChatGPT\Exceptions\InvalidResponseException;
 use DvTeam\ChatGPT\Exceptions\NoResponseFromAPI;
 use DvTeam\ChatGPT\Functions\Function\GPTProperties;
@@ -24,16 +26,15 @@ use DvTeam\ChatGPT\MessageTypes\ToolCall;
 use DvTeam\ChatGPT\MessageTypes\ToolResult;
 use DvTeam\ChatGPT\MessageTypes\WebSearchCall;
 use DvTeam\ChatGPT\MessageTypes\WebSearchResult;
-use DvTeam\ChatGPT\PredefinedModels\LLMCustomModel;
 use DvTeam\ChatGPT\PredefinedModels\LLMMediumNoReasoning;
-use DvTeam\ChatGPT\PredefinedModels\LLMMediumReasoning;
-use DvTeam\ChatGPT\PredefinedModels\LLMSmallReasoning;
 use DvTeam\ChatGPT\PredefinedModels\TextToSpeech\GPTMiniTextToSpeech;
 use DvTeam\ChatGPT\PredefinedModels\TextToSpeech\TextToSpeechModel;
 use DvTeam\ChatGPT\Response\ChatResponse;
 use DvTeam\ChatGPT\Response\ChatResponseChoice;
+use DvTeam\ChatGPT\Response\ResponseUsage;
 use DvTeam\ChatGPT\Response\WebSearchResponse;
 use DvTeam\ChatGPT\ResponseFormat\JsonSchemaResponseFormat;
+use DvTeam\ChatGPT\Tools\WebSearchTool;
 use Opis\JsonSchema\Validator;
 use RuntimeException;
 
@@ -79,6 +80,9 @@ use RuntimeException;
  *     max_output_tokens?: int,
  *     temperature?: float|int,
  *     top_p?: float|int,
+ *     prompt_cache_key?: string,
+ *     prompt_cache_options?: object{mode: 'implicit'|'explicit', ttl: '30m'},
+ *     reasoning?: object{effort?: string},
  *     text?: TRequestTextConfig,
  *     tools?: object{name?: string, type?: string}[],
  *     tool_choice?: string
@@ -125,7 +129,7 @@ use RuntimeException;
  *
  * @phpstan-type TResponseUsage object{
  *     input_tokens?: int,
- *     input_tokens_details?: object{cached_tokens?: int},
+ *     input_tokens_details?: object{cached_tokens?: int, cache_write_tokens?: int},
  *     output_tokens?: int,
  *     output_tokens_details?: object{reasoning_tokens?: int},
  *     total_tokens?: int
@@ -289,6 +293,8 @@ class ChatGPT {
 		int $maxTokens = 2500,
 		?float $temperature = null,
 		?float $topP = null,
+		?string $promptCacheKey = null,
+		?PromptCacheOptions $promptCacheOptions = null,
 	): GPTConversation {
 		return new GPTConversation(
 			chat: $this,
@@ -301,6 +307,8 @@ class ChatGPT {
 			maxTokens: $maxTokens,
 			temperature: $temperature,
 			topP: $topP,
+			promptCacheKey: $promptCacheKey,
+			promptCacheOptions: $promptCacheOptions,
 		);
 	}
 
@@ -321,6 +329,8 @@ class ChatGPT {
 		int $maxTokens = 2500,
 		?float $temperature = null,
 		?float $topP = null,
+		?string $promptCacheKey = null,
+		?PromptCacheOptions $promptCacheOptions = null,
 	): ChatResponse {
 		$model ??= new LLMMediumNoReasoning();
 
@@ -336,6 +346,8 @@ class ChatGPT {
 				maxTokens: $maxTokens,
 				temperature: $temperature,
 				topP: $topP,
+				promptCacheKey: $promptCacheKey,
+				promptCacheOptions: $promptCacheOptions,
 			)
 		);
 
@@ -412,16 +424,24 @@ class ChatGPT {
 			throw new NoResponseFromAPI('Invalid or incomplete response from OpenAI.');
 		}
 
+		$usage = $this->mapResponseUsage($responseData->usage ?? null);
+		$responseId = is_string($responseData->id ?? null) ? $responseData->id : null;
+
 		$choice = new ChatResponseChoice(
 			isToolCall: (bool) count($toolResults),
 			result: $message,
 			textResult: is_string($message) ? $message : null,
 			objResult: is_object($message) ? $message : null,
-			tools: $toolResults
+			tools: $toolResults,
+			outputItems: $output,
+			responseId: $responseId,
+			usage: $usage,
 		);
 
 		return new ChatResponse(
 			choices: [$choice],
+			id: $responseId,
+			usage: $usage,
 		);
 	}
 
@@ -531,8 +551,8 @@ class ChatGPT {
 	}
 
 	/**
-	 * Build a callable GPT function that performs an OpenAI web search and returns the first text plus metadata.
-	 * If no defaults are provided, the LLM must supply user_location, model, and effort values.
+	 * Build the schema for a caller-executed web-search function.
+	 * Defaults only control which arguments the model must provide.
 	 *
 	 * @param TUserLocation|null $defaultUserLocation
 	 * @param ChatModelName|null $defaultModel
@@ -561,7 +581,7 @@ class ChatGPT {
 			),
 			new GPTStringProperty(
 				name: 'model',
-				description: 'Optional model name for web search (if omitted, server defaults apply). `standard` translates to the largest model available (like `gpt-5.1`). `small` translates to something like `gpt-5.1-small`. `nano` translates to something like `gpt-5.1-nano`',
+				description: 'Model role for the caller-provided executor: standard, mini, or nano.',
 				enum: ['standard', 'mini', 'nano'],
 				required: $defaultModel === null,
 			),
@@ -569,8 +589,24 @@ class ChatGPT {
 
 		return new GPTFunction(
 			name: 'web_search',
-			description: 'Search the web for information.',
+			description: 'Requests a web search from the caller-provided executor.',
 			properties: $properties
+		);
+	}
+
+	/**
+	 * Build an executable web-search tool for GPTConversation.
+	 *
+	 * @param TUserLocation|null $defaultUserLocation
+	 */
+	public function buildCallableWebSearchTool(
+		?array $defaultUserLocation = null,
+		?ChatModelName $defaultModel = null,
+	): WebSearchTool {
+		return new WebSearchTool(
+			chat: $this,
+			userLocation: $defaultUserLocation,
+			model: $defaultModel,
 		);
 	}
 
@@ -617,6 +653,14 @@ class ChatGPT {
 
 			if($enquiry->topP !== null && $enquiry->model->supportsTopP()) {
 				$body['top_p'] = $enquiry->topP;
+			}
+
+			if($enquiry->promptCacheKey !== null) {
+				$body['prompt_cache_key'] = $enquiry->promptCacheKey;
+			}
+
+			if($enquiry->promptCacheOptions !== null) {
+				$body['prompt_cache_options'] = $enquiry->promptCacheOptions->jsonSerialize();
 			}
 
 			if(count($enquiry->functions)) {
@@ -724,6 +768,28 @@ class ChatGPT {
 		return $arguments;
 	}
 
+	private function mapResponseUsage(mixed $usage): ?ResponseUsage {
+		if(!is_object($usage)) {
+			return null;
+		}
+
+		$inputDetails = is_object($usage->input_tokens_details ?? null)
+			? $usage->input_tokens_details
+			: (object) [];
+		$outputDetails = is_object($usage->output_tokens_details ?? null)
+			? $usage->output_tokens_details
+			: (object) [];
+
+		return new ResponseUsage(
+			inputTokens: is_int($usage->input_tokens ?? null) ? $usage->input_tokens : 0,
+			cachedTokens: is_int($inputDetails->cached_tokens ?? null) ? $inputDetails->cached_tokens : 0,
+			cacheWriteTokens: is_int($inputDetails->cache_write_tokens ?? null) ? $inputDetails->cache_write_tokens : 0,
+			outputTokens: is_int($usage->output_tokens ?? null) ? $usage->output_tokens : 0,
+			reasoningTokens: is_int($outputDetails->reasoning_tokens ?? null) ? $outputDetails->reasoning_tokens : 0,
+			totalTokens: is_int($usage->total_tokens ?? null) ? $usage->total_tokens : 0,
+		);
+	}
+
 	/**
 	 * Convert the library's responseFormat (legacy chat shape) to the Responses API shape.
 	 *
@@ -802,18 +868,8 @@ class ChatGPT {
 	}
 
 	private function getReasoningEffort(ChatModelName $model): ?string {
-		if(str_starts_with((string) $model, 'gpt-5')) {
-			if($model instanceof LLMSmallReasoning) {
-				return $model->effort->value;
-			}
-
-			if($model instanceof LLMMediumReasoning) {
-				return $model->effort->value;
-			}
-
-			if($model instanceof LLMCustomModel) {
-				return $model->effort->value ?? null;
-			}
+		if($model instanceof ReasoningEffortProvider) {
+			return $model->reasoningEffort()?->value;
 		}
 
 		return null;

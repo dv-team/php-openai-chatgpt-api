@@ -4,9 +4,12 @@ Setup
 - Low-level client: `DvTeam\ChatGPT\ChatGPT` in `src/ChatGPT.php` (one API call, no recursion).
 - Conversation helper: `DvTeam\ChatGPT\GPTConversation` manages context/tools step-by-step.
 - Default model if none is passed: `LLMMediumNoReasoning`.
-  - `\DvTeam\ChatGPT\PredefinedModels\LLMMediumNoReasoning` translates to the large models like `gpt-5.1`.
-  - `\DvTeam\ChatGPT\PredefinedModels\LLMSmallNoReasoning` translates to the mini models like `gpt-5.1-mini`.
-  - `\DvTeam\ChatGPT\PredefinedModels\LLMNanoNoReasoning` translates to the nano models like `gpt-5.1-nano`.
+  - `LLMLargeNoReasoning` and `LLMLargeReasoning` map to `gpt-5.6-sol`.
+  - `LLMMediumNoReasoning`, `LLMMediumReasoning`, `LLMSmallNoReasoning`, and `LLMSmallReasoning` map to `gpt-5.6-terra`.
+  - `LLMNanoNoReasoning` maps to `gpt-5.6-luna`.
+  - Large, Medium, Small, and Nano represent cost categories; Medium and Small currently use the same model.
+  - The `NoReasoning` presets explicitly send `reasoning.effort: none`; GPT-5.6 would otherwise default to medium.
+  - Reasoning presets support `none`, `low`, `medium`, `high`, `xhigh`, and `max`.
 - `ChatModelName` models announce support for tunables via:
   - `supportsTemperature(): bool`
   - `supportsTopP(): bool`
@@ -47,7 +50,41 @@ $followUp = $conversation->step();
 echo $followUp->result;
 ```
 
-Context <-> Array (persist / transport)
+For agent-style rounds, use `$conversation->runUntilResponse(maxSteps: 8)`. It executes callable tools and contacts the API again until a visible response arrives, but throws after the configured bound instead of allowing an endless tool loop. `step(true)` is the eight-step convenience form.
+
+Callable parameter names are exposed to the model as `snake_case` and mapped back to their original PHP names during invocation. For example, `$productJson` is published and accepted as `product_json`.
+
+`ChatOutput` retains raw Responses API output items. Keep them when persisting context: they preserve GPT-5.6 reasoning items, IDs, and function-call metadata required for lossless multi-round replay.
+
+Complete conversation session <-> JSON
+
+```php
+use DvTeam\ChatGPT\Common\PromptCacheOptions;
+
+$conversation = new GPTConversation(
+    chat: $chat,
+    context: [new ChatInput('Start a longer session.')],
+    callableTools: [$currentTool],
+    model: $model,
+    promptCacheKey: 'application:v1:session-123',
+    promptCacheOptions: new PromptCacheOptions(),
+);
+
+$json = $conversation->toJson();
+$conversation = GPTConversation::fromJson(
+    chat: $chat,
+    json: $json,
+    tools: [$currentlyAvailableTool],
+);
+```
+
+- `toArray()` / `toJson()` persist context, effective model capabilities and reasoning effort, response format, token/sampling settings, and prompt-cache configuration.
+- `fromArray()` / `fromJson()` require a `ChatGPT` client and accept the current tool list separately. Historical tool calls do not require their original PHP callables.
+- `PromptCacheOptions` supports `implicit` / `explicit` and the GPT-5.6 `30m` TTL. Reuse a stable `promptCacheKey` for requests with the same prefix.
+- `ChatResponse` and `ChatResponseChoice` expose the root response ID and `ResponseUsage`, including `cachedTokens` and `cacheWriteTokens`.
+- `serialize()` / `fromSerialized()` remain the context-only compatibility API.
+
+Context <-> Array (context only)
 
 ```php
 $payload = ChatGPT::contextAsArray($conversation->getContext()); // array<int, array<string, mixed>>
@@ -144,6 +181,26 @@ echo $response->firstChoice()->result->weight;
 
 Helpers from `WebSearchResponse`: `getWebSearchRequest()` returns a `WebSearchCall`, `getWebSearchResponse()` returns a matching `WebSearchResult` if you prefer to embed search calls/results directly in the chat context.
 
+For model-selected search inside a conversation:
+
+```php
+$model = new LLMMediumReasoning(ReasoningEffort::Medium);
+$conversation = new GPTConversation(
+    chat: $chat,
+    context: [ChatInput::mk('Research this product before answering.')],
+    callableTools: [
+        $chat->buildCallableWebSearchTool(
+            defaultUserLocation: ['type' => 'approximate', 'country' => 'DE'],
+            defaultModel: $model,
+        ),
+    ],
+    model: $model,
+);
+$reply = $conversation->runUntilResponse(maxSteps: 8);
+```
+
+`buildCallableWebSearchTool()` is executable by `GPTConversation`. `buildWebSearchFunction()` only creates a schema for manual low-level tool loops.
+
 Text to speech
 
 ```php
@@ -157,6 +214,12 @@ $audio = $chat->textToSpeech(
 );
 file_put_contents('/tmp/test.wav', $audio);
 ```
+
+Used-product interview demo
+
+- `examples/09-used-product-interview.php` is the long-session STDIN example.
+- It uses GPT-5.6 Sol with medium reasoning, model-selected web search, prompt caching, one-question-at-a-time interviewing, a locally validated final-submission tool, and bounded tool rounds.
+- Run with `php examples/09-used-product-interview.php` after setting `OPENAI_API_KEY`.
 
 Example: `test-tool-function-calling.php`
 

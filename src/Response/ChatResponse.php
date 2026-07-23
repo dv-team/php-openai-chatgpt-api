@@ -11,6 +11,8 @@ class ChatResponse {
 	 */
 	public function __construct(
 		public readonly array $choices,
+		public readonly ?string $id = null,
+		public readonly ?ResponseUsage $usage = null,
 	) {}
 
 	/**

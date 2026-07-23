@@ -126,4 +126,23 @@ class ChatGPTContextArrayConversionTest extends TestCase {
 		$this->expectException(\RuntimeException::class);
 		ChatGPT::contextFromArray([['type' => 'function', 'id' => 'x', 'name' => 'y', 'arguments' => []]]);
 	}
+
+	public function testRawResponseOutputItemsSurviveContextRoundTrip(): void {
+		$output = new ChatOutput(
+			result: null,
+			tools: [new ToolCall('call_1', 'lookup', ['id' => 1])],
+			outputItems: [
+				(object) ['id' => 'reasoning_1', 'type' => 'reasoning', 'summary' => []],
+				(object) ['type' => 'function_call', 'call_id' => 'call_1', 'name' => 'lookup', 'arguments' => '{"id":1}'],
+			],
+		);
+
+		$serialized = ChatGPT::contextAsArray([$output]);
+		$rehydrated = ChatGPT::contextFromArray($serialized);
+
+		$this->assertInstanceOf(ChatOutput::class, $rehydrated[0]);
+		$this->assertSame('reasoning', $rehydrated[0]->jsonSerialize()[0]->type ?? null);
+		$this->assertSame('function_call', $rehydrated[0]->jsonSerialize()[1]->type ?? null);
+		$this->assertEquals($serialized, ChatGPT::contextAsArray($rehydrated));
+	}
 }

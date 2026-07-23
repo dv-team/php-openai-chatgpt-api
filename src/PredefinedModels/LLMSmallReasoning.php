@@ -3,14 +3,15 @@
 namespace DvTeam\ChatGPT\PredefinedModels;
 
 use DvTeam\ChatGPT\Common\ChatModelName;
+use DvTeam\ChatGPT\Common\ReasoningEffortProvider;
 
-class LLMSmallReasoning implements ChatModelName {
+class LLMSmallReasoning implements ChatModelName, ReasoningEffortProvider {
 	public function __construct(
 		public readonly ReasoningEffort $effort
 	) {}
 
 	public function __toString(): string {
-		return 'gpt-5.4-mini';
+		return 'gpt-5.6-terra';
 	}
 
 	public function supportsTemperature(): bool {
@@ -23,5 +24,9 @@ class LLMSmallReasoning implements ChatModelName {
 
 	public function supportsMaxTokens(): bool {
 		return true;
+	}
+
+	public function reasoningEffort(): ReasoningEffort {
+		return $this->effort;
 	}
 }

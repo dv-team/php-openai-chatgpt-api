@@ -9,7 +9,12 @@ use DvTeam\ChatGPT\Common\TestTools;
 use DvTeam\ChatGPT\Http\Psr18HttpClient;
 use DvTeam\ChatGPT\MessageTypes\ChatInput;
 use DvTeam\ChatGPT\PredefinedModels\LLMCustomModel;
+use DvTeam\ChatGPT\PredefinedModels\LLMLargeNoReasoning;
+use DvTeam\ChatGPT\PredefinedModels\LLMLargeReasoning;
 use DvTeam\ChatGPT\PredefinedModels\LLMMediumNoReasoning;
+use DvTeam\ChatGPT\PredefinedModels\LLMMediumReasoning;
+use DvTeam\ChatGPT\PredefinedModels\LLMNanoNoReasoning;
+use DvTeam\ChatGPT\PredefinedModels\LLMSmallNoReasoning;
 use DvTeam\ChatGPT\PredefinedModels\LLMSmallReasoning;
 use DvTeam\ChatGPT\PredefinedModels\ReasoningEffort;
 use GuzzleHttp\Psr7\HttpFactory;
@@ -47,6 +52,8 @@ final class ChatGPTModelFeatureAnnouncementTest extends TestCase {
 		$requestData = JSON::parse((string) $timeline[0]['request']->getBody());
 
 		$this->assertSame(333, $requestData->max_output_tokens ?? null);
+		$this->assertSame('gpt-5.6-terra', $requestData->model ?? null);
+		$this->assertSame('none', $requestData->reasoning->effort ?? null);
 		$this->assertSame(0.2, $requestData->temperature ?? null);
 		$this->assertSame(0.7, $requestData->top_p ?? null);
 	}
@@ -75,8 +82,20 @@ final class ChatGPTModelFeatureAnnouncementTest extends TestCase {
 		$requestData = JSON::parse((string) $timeline[0]['request']->getBody());
 
 		$this->assertSame(444, $requestData->max_output_tokens ?? null);
+		$this->assertSame('gpt-5.6-terra', $requestData->model ?? null);
+		$this->assertSame('medium', $requestData->reasoning->effort ?? null);
 		$this->assertObjectNotHasProperty('temperature', $requestData);
 		$this->assertObjectNotHasProperty('top_p', $requestData);
+	}
+
+	public function testPredefinedModelsUseExpectedCostTiers(): void {
+		$this->assertSame('gpt-5.6-sol', (string) new LLMLargeNoReasoning());
+		$this->assertSame('gpt-5.6-sol', (string) new LLMLargeReasoning(ReasoningEffort::Medium));
+		$this->assertSame('gpt-5.6-terra', (string) new LLMMediumNoReasoning());
+		$this->assertSame('gpt-5.6-terra', (string) new LLMMediumReasoning(ReasoningEffort::Medium));
+		$this->assertSame('gpt-5.6-terra', (string) new LLMSmallNoReasoning());
+		$this->assertSame('gpt-5.6-terra', (string) new LLMSmallReasoning(ReasoningEffort::Medium));
+		$this->assertSame('gpt-5.6-luna', (string) new LLMNanoNoReasoning());
 	}
 
 	public function testCustomReasoningModelOmitsUnsupportedSamplingParams(): void {

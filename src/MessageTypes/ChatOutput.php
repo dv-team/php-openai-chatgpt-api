@@ -13,13 +13,19 @@ use InvalidArgumentException;
 class ChatOutput implements ChatMessage, ContextSerializable {
 	/**
 	 * @param ToolCall[] $tools
+	 * @param object[] $outputItems Raw Responses API output items for lossless replay.
 	 */
 	public function __construct(
 		public readonly null|string|object $result,
-		public readonly array $tools
+		public readonly array $tools,
+		public readonly array $outputItems = [],
 	) {}
 
 	public function jsonSerialize(): array {
+		if(count($this->outputItems)) {
+			return $this->outputItems;
+		}
+
 		$content = [];
 		$data = $this->result;
 
@@ -54,10 +60,19 @@ class ChatOutput implements ChatMessage, ContextSerializable {
 	}
 
 	/**
-	 * @return array{type: 'chat_output', result: object|string|null, tools: array<int, array<string, mixed>>}
+	 * @return array{type: 'chat_output', result: object|string|null, tools: array<int, array<string, mixed>>, output_items?: array<int, array<string, mixed>>}
 	 */
 	public function contextSerialize(): array {
-		return [
+		$outputItems = array_map(
+			static function(object $item): array {
+				/** @var array<string, mixed> $data */
+				$data = json_decode(JSON::stringify($item), true, 512, JSON_THROW_ON_ERROR);
+				return $data;
+			},
+			$this->outputItems,
+		);
+
+		$data = [
 			'type' => 'chat_output',
 			'result' => $this->result,
 			'tools' => array_map(
@@ -65,6 +80,12 @@ class ChatOutput implements ChatMessage, ContextSerializable {
 				$this->tools
 			),
 		];
+
+		if(count($outputItems)) {
+			$data['output_items'] = $outputItems;
+		}
+
+		return $data;
 	}
 
 	public static function contextUnserialize(array|object $data): self {
@@ -110,9 +131,29 @@ class ChatOutput implements ChatMessage, ContextSerializable {
 			$tools[] = ToolCall::contextUnserialize($tool);
 		}
 
+		$outputItemsRaw = $data['output_items'] ?? [];
+		if(is_object($outputItemsRaw)) {
+			$outputItemsRaw = (array) $outputItemsRaw;
+		}
+		if(!is_array($outputItemsRaw)) {
+			throw new InvalidArgumentException('Invalid chat_output output_items payload.');
+		}
+
+		$outputItems = [];
+		foreach($outputItemsRaw as $item) {
+			if(is_array($item)) {
+				$item = JSON::parse(JSON::stringify($item));
+			}
+			if(!is_object($item)) {
+				throw new InvalidArgumentException('Invalid chat_output output item payload.');
+			}
+			$outputItems[] = $item;
+		}
+
 		return new self(
 			result: $result,
 			tools: $tools,
+			outputItems: $outputItems,
 		);
 	}
 

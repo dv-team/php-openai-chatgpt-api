@@ -37,8 +37,8 @@ class WebSearchCall extends ToolCall {
  	 * @param string $id Eindeutige ID, um Call und Result zu verbinden
  	 * @param string $query Suchbegriff
  	 * @param array<string, mixed>|null $userLocation optionale Nutzer-Lokalisierung
- 	 * @param string|null $model optionales Modell (z. B. "gpt-5.1")
- 	 * @param string|null $effort optionales Reasoning-Effort ("low"|"medium"|"high")
+	 * @param string|null $model optionales Modell (z. B. "gpt-5.6-sol")
+	 * @param string|null $effort optionales Reasoning-Effort ("none"|"low"|"medium"|"high"|"xhigh"|"max")
  	 */
 	public function __construct(
 		string $id,

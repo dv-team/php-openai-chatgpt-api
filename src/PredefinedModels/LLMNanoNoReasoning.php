@@ -3,10 +3,11 @@
 namespace DvTeam\ChatGPT\PredefinedModels;
 
 use DvTeam\ChatGPT\Common\ChatModelName;
+use DvTeam\ChatGPT\Common\ReasoningEffortProvider;
 
-class LLMNanoNoReasoning implements ChatModelName {
+class LLMNanoNoReasoning implements ChatModelName, ReasoningEffortProvider {
 	public function __toString(): string {
-		return 'gpt-5.4-nano';
+		return 'gpt-5.6-luna';
 	}
 
 	public function supportsTemperature(): bool {
@@ -19,5 +20,9 @@ class LLMNanoNoReasoning implements ChatModelName {
 
 	public function supportsMaxTokens(): bool {
 		return true;
+	}
+
+	public function reasoningEffort(): ReasoningEffort {
+		return ReasoningEffort::None;
 	}
 }

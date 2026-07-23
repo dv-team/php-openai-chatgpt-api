@@ -15,4 +15,12 @@ class CallableTools {
 
 		return $words[$index] ?? 'unknown';
 	}
+
+	#[GPTCallableDescriptor(name: 'submit_product_data', description: 'Submit product data.')]
+	public static function submitProductData(
+		#[GPTParameterDescriptor(['description' => 'Product data as JSON.'])]
+		string $productJson,
+	): string {
+		return $productJson;
+	}
 }

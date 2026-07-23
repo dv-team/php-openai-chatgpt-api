@@ -29,7 +29,7 @@ final class ChatGPTWebSearchFunctionTest extends TestCase {
 					structure: (object)[],
 					query: $query,
 					userLocation: $userLocation,
-					model: $model ? (string) $model : 'gpt-5.1',
+					model: $model ? (string) $model : 'gpt-5.6-terra',
 					effort: null,
 				);
 			}
@@ -61,5 +61,19 @@ final class ChatGPTWebSearchFunctionTest extends TestCase {
 		$fnWithDefaults = $chat->buildWebSearchFunction($defaultLoc, new LLMCustomModel('gpt-5.1'));
 		$required2 = $fnWithDefaults->jsonSerialize()['parameters']->required ?? [];
 		$this->assertSame(['query'], $required2);
+	}
+
+	public function testCallableWebSearchToolExecutesSearch(): void {
+		$chat = $this->makeChat();
+		$tool = $chat->buildCallableWebSearchTool(
+			defaultUserLocation: ['type' => 'approximate', 'country' => 'DE'],
+			defaultModel: new LLMCustomModel('gpt-5.6-sol'),
+		);
+
+		$result = $tool('product firmware support');
+
+		$this->assertSame('product firmware support', $result['query']);
+		$this->assertSame('result text', $result['answer']);
+		$this->assertSame('gpt-5.6-sol', $result['model']);
 	}
 }

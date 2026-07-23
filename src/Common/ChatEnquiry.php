@@ -22,5 +22,7 @@ class ChatEnquiry {
 		public readonly ?int $maxTokens = null,
 		public readonly ?float $temperature = null,
 		public readonly ?float $topP = null,
+		public readonly ?string $promptCacheKey = null,
+		public readonly ?PromptCacheOptions $promptCacheOptions = null,
 	) {}
 }

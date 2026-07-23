@@ -20,10 +20,16 @@ class CallableInvoker {
 		$args = [];
 
 		foreach($reflection->getParameters() as $parameter) {
-			$name = $parameter->getName();
+			$parameterName = $parameter->getName();
+			$toolArgumentName = CallableNameNormalizer::normalize($parameterName);
 
-			if(property_exists($arguments, $name)) {
-				$args[] = $arguments->$name;
+			if(property_exists($arguments, $parameterName)) {
+				$args[] = $arguments->$parameterName;
+				continue;
+			}
+
+			if(property_exists($arguments, $toolArgumentName)) {
+				$args[] = $arguments->$toolArgumentName;
 				continue;
 			}
 
@@ -36,7 +42,7 @@ class CallableInvoker {
 				continue;
 			}
 
-			throw new RuntimeException("Missing required argument '{$name}' for callable tool.");
+			throw new RuntimeException("Missing required argument '{$toolArgumentName}' for callable tool.");
 		}
 
 		if(is_array($callable) || is_string($callable)) {
